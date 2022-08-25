@@ -1,5 +1,144 @@
 # Об'єкти Спостереження
 
+## Анатомія Об'єкту Спостереження
+Об'єкти Спостереження **створюються** за допомогою `new Observable` або оператора створення(`of(), from(), interval()` etc), на них підписується Спостерігач, **виконуються** для доставки сповіщень `next`/`error`/`complete` до Спостерігача, і їхнє виконання може бути припинено. Усі ці чотири аспекти закодовані в екземплярі Об'єкту Спостереження, але деякі з цих аспектів пов’язані з іншими типами, наприклад Спостерігач і Підписка.
+Основні завдання Об'єкту Спостереження:
+- Створення Об'єктів Спостереження 
+- Підписка на Об'єкти Спостереження 
+- Виконання Об'єктів Спостереження 
+- Утилізація Об'єктів Спостереження
+### Створення Об'єктів Спостереження
+Конструктор Observable приймає один аргумент: функцію `subscribe`.
+У наступному прикладі створюється Observable, який щосекунди надсилає передплатнику рядок «hi».
+```javascript
+import { Observable } from 'rxjs';
+
+const observable = new Observable(function subscribe(subscriber) {
+  const id = setInterval(() => {
+    subscriber.next('hi')
+  }, 1000);
+});
+```
+У наведеному вище прикладі функція підписки є найважливішою частиною для опису Observable. Давайте розглянемо, що вона означає.
+### Підписка на Об'єкти Спостереження
+На Об'єкт Спостереження `observable` у прикладі ми можемо підписатися таким чином:
+```javascript
+observable.subscribe(x => console.log(x));
+```
+Це не випадково, що `observable.subscribe` і `subscribe` в `new Observable(function subscribe(subscriber) {...})` мають однакові назви. У бібліотеці вони трошки відрізняються, але для практичних цілей ви можете вважати їх концептуально рівноправними.
+
+Це показує, як виклики підписки не розподіляються між декількома спостерігачами одного Об'єкту Спостереження. Під час виклику `observable.subscribe`, функція `subscribe` у `new Observable(function subscribe(subscriber) {...})` виконується для цього підписника. Кожен виклик `observable.subscribe` запускає власний незалежний виклик для кожного підписника.
+
+> Підписка на Об'єкт Спостереження схожа на виклик функції, в параметри якої ми передаємо зворотні виклики, куди будуть доставлені дані.
+
+Це суттєво відрізняється від WEB API обробників подій, таких як `addEventListener` / `removeEventListener`. З `observable.subscribe` даний Спостерігач не зареєстрований як слухач у Об'єкту Спостереження. Об'єкт спостереження навіть не підтримує список приєднаних Спостерігачів.
+
+Виклик `subscribe` — це просто спосіб розпочати «виконання Об'єкту Спостереження» та доставити значення або події Спостерігачу цього виконання.
+
+### Виконання Об'єктів Спостереження
+Код усередині `new Observable(function subscribe(subscriber) {...})` представляє «виконання Об'єкту Спостереження», відкладене обчислення, яке відбувається лише для кожного Спостерігача, який підписався. Виконання створює множину значень з часом, синхронно чи асинхронно.
+
+Існує три типи значень, які може надати виконання Об'єкту Спостереження:
+- `next` сповіщення: надсилає таке значення, як число, рядок, об’єкт тощо. 
+- `error` сповіщення: надсилає повідомлення про помилку JavaScript або виняток. 
+- `complete` сповіщення: не надсилає значення.
+
+Сповіщення «Наступний» є найважливішим і найпоширенішим типом: вони представляють фактичні дані, які доставляються підписнику. Сповіщення «Помилка» та «Завершено» можуть відбутися ***лише один раз*** під час виконання Об'єкту Спостереження, і може бути лише одне з них.
+
+> У виконанні Об'єкту Спостереження може бути доставлено від нуля до нескінченності «Наступний» сповіщень. Якщо доставлено сповіщення «Помилка» або «Завершено», після цього більше нічого не буде доставлено.
+Нижче наведено приклад виконання Observable, яке надсилає три сповіщення Наступний, а потім завершується:
+```javascript
+import { Observable } from 'rxjs';
+
+const observable = new Observable(function subscribe(subscriber) {
+  subscriber.next(1);
+  subscriber.next(2);
+  subscriber.next(3);
+  subscriber.complete();
+});
+```
+Об'єкти Спостереження суворо дотримуються Observable Contract, тому наступний код не доставить наступне сповіщення 4:
+```javascript
+import { Observable } from 'rxjs';
+
+const observable = new Observable(function subscribe(subscriber) {
+  subscriber.next(1);
+  subscriber.next(2);
+  subscriber.next(3);
+  subscriber.complete();
+  subscriber.next(4); // Is not delivered because it would violate the contract
+});
+```
+Гарною ідеєю буде загорнути будь-який код в функції `subscribe` блоком `try/catch`, який надсилатиме сповіщення про помилку, якщо отримає виняток:
+```javascript
+import { Observable } from 'rxjs';
+
+const observable = new Observable(function subscribe(subscriber) {
+  try {
+    subscriber.next(1);
+    subscriber.next(2);
+    subscriber.next(3);
+    subscriber.complete();
+  } catch (err) {
+    subscriber.error(err); // delivers an error if it caught one
+  }
+});
+```
+### Скасування виконання Об'єктів Спостереження
+Оскільки виконання Об'єктів Спостереження може бути нескінченним, а Спостерігач зазвичай хоче перервати виконання в певний момент, нам потрібен API для скасування виконання. Оскільки кожне виконання є ексклюзивним лише для одного Спостерігача, щойно Спостерігач закінчить отримання значень, він повинен мати спосіб зупинити виконання, щоб уникнути марної витрати обчислювальної потужності або ресурсів пам’яті.
+
+Коли викликається `observable.subscribe`, Спостерігач прив'язується до щойно створеного виконання Об'єкту Спостереження. Цей виклик також повертає об’єкт, `Subscription`:
+```javascript
+const subscription = observable.subscribe(x => console.log(x));
+```
+Підписка представляє поточне виконання та має мінімальний API, який дозволяє скасувати це виконання. Детальніше про тип підписки читайте тут. За допомогою `subscription.unsubscribe()` ви можете скасувати поточне виконання:
+```javascript
+import { from } from 'rxjs';
+
+const observable = from([10, 20, 30]);
+const subscription = observable.subscribe(x => console.log(x));
+// Later:
+subscription.unsubscribe();
+```
+> Коли ви підписуєтеся, ви отримуєте назад підписку, яка представляє поточне виконання. Просто викличте `unsubscribe()`, щоб скасувати виконання.
+
+Кожен Об'єкт Спостереження повинен визначати, як розпоряджатися ресурсами цього виконання, коли ми створюємо Observable за допомогою `new Observable(function subscribe() {...})`. Ви можете зробити це, повернувши спеціальну функцію скасування підписки з функції `subscribe()`.
+
+Наприклад, ось як ми очищаємо інтервальне виконання за допомогою `setInterval`:
+```javascript
+const observable = new Observable(function subscribe(subscriber) {
+  // Keep track of the interval resource
+  const intervalId = setInterval(() => {
+    subscriber.next('hi');
+  }, 1000);
+
+  // Provide a way of canceling and disposing the interval resource
+  return function unsubscribe() {
+    clearInterval(intervalId);
+  };
+});
+```
+Подібно до того, як `observable.subscribe` нагадує `new Observable(function subscribe() {...})`, `unsubscribe`, який ми повертаємо з `subscribe`, концептуально дорівнює `subscription.unsubscribe`. Насправді, якщо ми видалимо типи ReactiveX, що оточують ці концепції, ми залишимо досить простий JavaScript.
+```javascript
+function subscribe(subscriber) {
+  const intervalId = setInterval(() => {
+    subscriber.next('hi');
+  }, 1000);
+
+  return function unsubscribe() {
+    clearInterval(intervalId);
+  };
+}
+
+const unsubscribe = subscribe({next: (x) => console.log(x)});
+
+// Later:
+unsubscribe(); // dispose the resources
+```
+Причина, чому ми використовуємо типи Rx, такі як Об'єкт Спостереження, Спостерігач і Підписка, полягає в тому, щоб забезпечити безпеку (наприклад, Observable Contract) і можливість комбінування з операторами.
+
+
+## Визначення
 Об'єкти Спостереження — це ліниві колекції даних, які можуть надходити з часом. 
 
 З визначення ми можемо виділити 2 основні пункти:
@@ -455,139 +594,4 @@ const observable = new Observable(subscriber => {
 ```
 
 
-## Анатомія Об'єкту Спостереження
-Об'єкти Спостереження **створюються** за допомогою `new Observable` або оператора створення(`of(), from(), interval()` etc), на них підписується Спостерігач, **виконуються** для доставки сповіщень `next`/`error`/`complete` до Спостерігача, і їхнє виконання може бути припинено. Усі ці чотири аспекти закодовані в екземплярі Об'єкту Спостереження, але деякі з цих аспектів пов’язані з іншими типами, наприклад Спостерігач і Підписка.
-Основні завдання Об'єкту Спостереження:
-- Створення Об'єктів Спостереження 
-- Підписка на Об'єкти Спостереження 
-- Виконання Об'єктів Спостереження 
-- Утилізація Об'єктів Спостереження
-### Створення Об'єктів Спостереження
-Конструктор Observable приймає один аргумент: функцію `subscribe`.
-У наступному прикладі створюється Observable, який щосекунди надсилає передплатнику рядок «hi».
-```javascript
-import { Observable } from 'rxjs';
 
-const observable = new Observable(function subscribe(subscriber) {
-  const id = setInterval(() => {
-    subscriber.next('hi')
-  }, 1000);
-});
-```
-У наведеному вище прикладі функція підписки є найважливішою частиною для опису Observable. Давайте розглянемо, що вона означає.
-### Subscribing to Observables
-На Об'єкт Спостереження `observable` у прикладі ми можемо підписатися таким чином:
-```javascript
-observable.subscribe(x => console.log(x));
-```
-Це не випадково, що `observable.subscribe` і `subscribe` в `new Observable(function subscribe(subscriber) {...})` мають однакові назви. У бібліотеці вони трошки відрізняються, але для практичних цілей ви можете вважати їх концептуально рівноправними.
-
-Це показує, як виклики підписки не розподіляються між декількома спостерігачами одного Об'єкту Спостереження. Під час виклику `observable.subscribe`, функція `subscribe` у `new Observable(function subscribe(subscriber) {...})` виконується для цього підписника. Кожен виклик `observable.subscribe` запускає власний незалежний виклик для кожного підписника.
-
-> Підписка на Об'єкт Спостереження схожа на виклик функції, в параметри якої ми передаємо зворотні виклики, куди будуть доставлені дані.
-
-Це суттєво відрізняється від WEB API обробників подій, таких як `addEventListener` / `removeEventListener`. З `observable.subscribe` даний Спостерігач не зареєстрований як слухач у Об'єкту Спостереження. Об'єкт спостереження навіть не підтримує список приєднаних Спостерігачів.
-
-Виклик `subscribe` — це просто спосіб розпочати «виконання Об'єкту Спостереження» та доставити значення або події Спостерігачу цього виконання.
-
-### Executing Observable
-Код усередині `new Observable(function subscribe(subscriber) {...})` представляє «виконання Об'єкту Спостереження», відкладене обчислення, яке відбувається лише для кожного Спостерігача, який підписався. Виконання створює множину значень з часом, синхронно чи асинхронно.
-
-Існує три типи значень, які може надати виконання Об'єкту Спостереження:
-- `next` сповіщення: надсилає таке значення, як число, рядок, об’єкт тощо. 
-- `error` сповіщення: надсилає повідомлення про помилку JavaScript або виняток. 
-- `complete` сповіщення: не надсилає значення.
-
-Сповіщення «Наступний» є найважливішим і найпоширенішим типом: вони представляють фактичні дані, які доставляються підписнику. Сповіщення «Помилка» та «Завершено» можуть відбутися ***лише один раз*** під час виконання Об'єкту Спостереження, і може бути лише одне з них.
-
-> У виконанні Об'єкту Спостереження може бути доставлено від нуля до нескінченності «Наступний» сповіщень. Якщо доставлено сповіщення «Помилка» або «Завершено», після цього більше нічого не буде доставлено.
-Нижче наведено приклад виконання Observable, яке надсилає три сповіщення Наступний, а потім завершується:
-```javascript
-import { Observable } from 'rxjs';
-
-const observable = new Observable(function subscribe(subscriber) {
-  subscriber.next(1);
-  subscriber.next(2);
-  subscriber.next(3);
-  subscriber.complete();
-});
-```
-Об'єкти Спостереження суворо дотримуються Observable Contract, тому наступний код не доставить наступне сповіщення 4:
-```javascript
-import { Observable } from 'rxjs';
-
-const observable = new Observable(function subscribe(subscriber) {
-  subscriber.next(1);
-  subscriber.next(2);
-  subscriber.next(3);
-  subscriber.complete();
-  subscriber.next(4); // Is not delivered because it would violate the contract
-});
-```
-Гарною ідеєю буде загорнути будь-який код в функції `subscribe` блоком `try/catch`, який надсилатиме сповіщення про помилку, якщо отримає виняток:
-```javascript
-import { Observable } from 'rxjs';
-
-const observable = new Observable(function subscribe(subscriber) {
-  try {
-    subscriber.next(1);
-    subscriber.next(2);
-    subscriber.next(3);
-    subscriber.complete();
-  } catch (err) {
-    subscriber.error(err); // delivers an error if it caught one
-  }
-});
-```
-### Disposing  Observable Execution
-Оскільки виконання Об'єктів Спостереження може бути нескінченним, а Спостерігач зазвичай хоче перервати виконання в певний момент, нам потрібен API для скасування виконання. Оскільки кожне виконання є ексклюзивним лише для одного Спостерігача, щойно Спостерігач закінчить отримання значень, він повинен мати спосіб зупинити виконання, щоб уникнути марної витрати обчислювальної потужності або ресурсів пам’яті.
-
-Коли викликається `observable.subscribe`, Спостерігач прив'язується до щойно створеного виконання Об'єкту Спостереження. Цей виклик також повертає об’єкт, `Subscription`:
-```javascript
-const subscription = observable.subscribe(x => console.log(x));
-```
-Підписка представляє поточне виконання та має мінімальний API, який дозволяє скасувати це виконання. Детальніше про тип підписки читайте тут. За допомогою `subscription.unsubscribe()` ви можете скасувати поточне виконання:
-```javascript
-import { from } from 'rxjs';
-
-const observable = from([10, 20, 30]);
-const subscription = observable.subscribe(x => console.log(x));
-// Later:
-subscription.unsubscribe();
-```
-> Коли ви підписуєтеся, ви отримуєте назад підписку, яка представляє поточне виконання. Просто викличте `unsubscribe()`, щоб скасувати виконання.
-
-Кожен Об'єкт Спостереження повинен визначати, як розпоряджатися ресурсами цього виконання, коли ми створюємо Observable за допомогою `new Observable(function subscribe() {...})`. Ви можете зробити це, повернувши спеціальну функцію скасування підписки з функції `subscribe()`.
-
-Наприклад, ось як ми очищаємо інтервальне виконання за допомогою `setInterval`:
-```javascript
-const observable = new Observable(function subscribe(subscriber) {
-  // Keep track of the interval resource
-  const intervalId = setInterval(() => {
-    subscriber.next('hi');
-  }, 1000);
-
-  // Provide a way of canceling and disposing the interval resource
-  return function unsubscribe() {
-    clearInterval(intervalId);
-  };
-});
-```
-Подібно до того, як `observable.subscribe` нагадує `new Observable(function subscribe() {...})`, `unsubscribe`, який ми повертаємо з `subscribe`, концептуально дорівнює `subscription.unsubscribe`. Насправді, якщо ми видалимо типи ReactiveX, що оточують ці концепції, ми залишимо досить простий JavaScript.
-```javascript
-function subscribe(subscriber) {
-  const intervalId = setInterval(() => {
-    subscriber.next('hi');
-  }, 1000);
-
-  return function unsubscribe() {
-    clearInterval(intervalId);
-  };
-}
-
-const unsubscribe = subscribe({next: (x) => console.log(x)});
-
-// Later:
-unsubscribe(); // dispose the resources
-```
-Причина, чому ми використовуємо типи Rx, такі як Об'єкт Спостереження, Спостерігач і Підписка, полягає в тому, щоб забезпечити безпеку (наприклад, Observable Contract) і можливість комбінування з операторами.
