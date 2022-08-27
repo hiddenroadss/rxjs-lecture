@@ -8,9 +8,10 @@
 
 Всередині Суб'єкта `subscribe` не викликає нового виконання, яке доставляє значення. Він просто реєструє Спостерігача у списку Спостерігачів, подібно до того, як `addListener` зазвичай працює в інших бібліотеках і мовах.
 
-**Кожен Суб'єкт є Спостерігачем**. Це об’єкт із методами `next(v)`, `error(e)` і `complete()`. Щоб передати нове значення Суб’єкту, просто викличте `next(theValue)`, і воно буде передано багатоадресним Спостерігачам, зареєстрованим для прослуховування Суб’єкта.
+**Кожен Суб'єкт є Спостерігачем**. Це об’єкт із методами `next(v)`, `error(e)` і `complete()`. Щоб передати нове значення Суб’єкту, просто викличте `next(theValue)`, і воно буде передано всім Спостерігачам, зареєстрованим для прослуховування Суб’єкта.
 
 У наведеному нижче прикладі ми маємо двох Спостерігачів, приєднаних до Суб’єкта, і ми передаємо деякі значення Суб’єкту:
+
 ```javascript
 import { Subject } from 'rxjs';
 
@@ -32,7 +33,9 @@ subject.next(2);
 // observerA: 2
 // observerB: 2
 ```
-Оскільки Суб'єкт є Спостерігачем, це також означає, що ви можете надати Суб'єкт як аргумент для підписки будь-якого Об'єкт Спостереження, як показано в прикладі нижче:
+
+Оскільки Суб'єкт є Спостерігачем, це також означає, що ви можете передати Суб'єкт як аргумент для підписки будь-якого Об'єкта Спостереження, як показано в прикладі нижче:
+
 ```javascript
 import { Subject, from } from 'rxjs';
 
@@ -59,19 +62,24 @@ observable.subscribe(subject); // You can subscribe providing a Subject
 
 ```
 
-З наведеним вище підходом ми, по суті, просто перетворили одноадресне виконання Об'єкта Спостереження на багатоадресне через Суб'єкт. Це демонструє, як Суб'єкти є єдиним способом зробити будь-яке виконання Об'єкта Спостереження доступним для кількох Спостерігачів.
+З наведеним вище підходом ми, по суті, просто перетворили одноадресне виконання Об'єкта Спостереження на багатоадресне через Суб'єкт. Це демонструє, як Суб'єкти є **єдиним** способом зробити будь-яке виконання Об'єкта Спостереження доступним для кількох Спостерігачів.
 
-Існує також кілька спеціалізацій типу Суб'єкт: BehaviorSubject, ReplaySubject і AsyncSubject.
+Існує також кілька спеціалізацій типу Суб'єкт: `BehaviorSubject`, `ReplaySubject` і `AsyncSubject`.
 
 ## Multicasted Observables
 
 «Multicasted Observable» передає сповіщення через Суб'єкт, який може мати багато Спостерігачів, тоді як простий «unicast Observable» надсилає сповіщення лише одному Спостерігачу.
 
-Багатоадресний Об'єкт Спостереження використовує Суб'єкт під капотом, щоб кілька Спостерігачів бачили те саме виконання Об'єкта Спостереження.
+> Багатоадресний Об'єкт Спостереження використовує Суб'єкт під капотом, щоб кілька Спостерігачів бачили те саме виконання Об'єкта Спостереження.
 
-Під капотом ось як працює оператор багатоадресної передачі: Спостерігачі підписуються на базовий Суб'єкт, а Суб'єкт підписується на джерело Об'єкта Спостереження. Наступний приклад схожий на попередній, у якому використовувався `observable.subscribe(subject)`:
+Ось як працює оператор `multicast` під капотом:
+
+-   Спостерігачі підписуються на базовий Суб'єкт, а Суб'єкт підписується на джерело Об'єкта Спостереження.
+
+Наступний приклад схожий на попередній, у якому використовувався `observable.subscribe(subject)`:
+
 ```javascript
-import { from, Subject, multicast } from 'rxjs';
+import { from, Subject, multicast } from "rxjs";
 
 const source = from([1, 2, 3]);
 const subject = new Subject();
@@ -79,17 +87,17 @@ const multicasted = source.pipe(multicast(subject));
 
 // These are, under the hood, `subject.subscribe({...})`:
 multicasted.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 multicasted.subscribe({
-  next: (v) => console.log(`observerB: ${v}`),
+    next: (v) => console.log(`observerB: ${v}`),
 });
 
 // This is, under the hood, `source.subscribe(subject)`:
 multicasted.connect();
 ```
 
-`multicast` повертає Об'єкт Спостереження, який виглядає як звичайний Об'єкт Спостереження, але працює як Суб'єкт, коли справа доходить до підписки. `multicast` повертає ConnectableObservable, який є просто Об'єкт Спостереження з методом `connect()`.
+`multicast` повертає Об'єкт Спостереження, який виглядає як звичайний Об'єкт Спостереження, але працює як Суб'єкт, коли справа доходить до підписки. `multicast` повертає ConnectableObservable, який є просто Об'єктом Спостереження з методом `connect()`.
 
 Метод `connect()` важливий, щоб точно визначити, коли почнеться виконання спільного Об'єкта Спостереження. Оскільки `connect()` виконує `source.subscribe(subject)` під капотом, `connect()` повертає підписку, від якої ви можете скасувати підписку, щоб скасувати спільне виконання Об'єкта Спостереження.
 
@@ -98,6 +106,7 @@ multicasted.connect();
 Виклик `connect()` вручну та обробка підписки часто громіздкі. Зазвичай ми хочемо автоматично підключатися, коли приходить перший Спостерігач, і автоматично скасовувати спільне виконання, коли останній Спостерігач скасовує підписку.
 
 Розглянемо наступний приклад, коли підписки відбуваються, як зазначено в цьому списку:
+
 1. First Observer підписується на багатоадресний Об'єкт Спостереження
 2. Багатоадресний Об'єкт Спостереження підключено
 3. Наступне значення 0 доставляється першому спостерігачу
@@ -107,11 +116,12 @@ multicasted.connect();
 7. First Observer скасовує підписку на багатоадресний Об'єкт Спостереження
 8. Наступне значення 2 доставляється другому спостерігачу
 9. Другий спостерігач скасовує підписку на групову передачу Об'єкт Спостереження
-10. Підписку на підключення до багатоадресного Об'єкт Спостереження скасовано
+10. Підписку на підключення до багатоадресного Об'єкту Спостереження скасовано
 
 Щоб досягти цього за допомогою явних викликів `connect()`, ми пишемо такий код:
+
 ```javascript
-import { interval, Subject, multicast } from 'rxjs';
+import { interval, Subject, multicast } from "rxjs";
 
 const source = interval(500);
 const subject = new Subject();
@@ -119,37 +129,38 @@ const multicasted = source.pipe(multicast(subject));
 let subscription1, subscription2, subscriptionConnect;
 
 subscription1 = multicasted.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 // We should call `connect()` here, because the first
 // subscriber to `multicasted` is interested in consuming values
 subscriptionConnect = multicasted.connect();
 
 setTimeout(() => {
-  subscription2 = multicasted.subscribe({
-    next: (v) => console.log(`observerB: ${v}`),
-  });
+    subscription2 = multicasted.subscribe({
+        next: (v) => console.log(`observerB: ${v}`),
+    });
 }, 600);
 
 setTimeout(() => {
-  subscription1.unsubscribe();
+    subscription1.unsubscribe();
 }, 1200);
 
 // We should unsubscribe the shared Observable execution here,
 // because `multicasted` would have no more subscribers after this
 setTimeout(() => {
-  subscription2.unsubscribe();
-  subscriptionConnect.unsubscribe(); // for the shared Observable execution
+    subscription2.unsubscribe();
+    subscriptionConnect.unsubscribe(); // for the shared Observable execution
 }, 2000);
 ```
 
 Якщо ми хочемо уникнути явних викликів `connect()`, ми можемо використати метод `refCount()` ConnectableObservable (підрахунок посилань), який повертає Об'єкт Спостереження, який відстежує кількість підписників. Коли кількість підписників зросте з 0 до 1, він викличе для нас функцію `connect()`, яка розпочне спільне виконання. Лише коли кількість підписників зменшиться з 1 до 0, підписку буде повністю скасовано, припиняючи подальше виконання.
 
-`refCount` змушує багатоадресний Об'єкт Спостереження автоматично починати виконання, коли приходить перший підписник, і припиняти виконання, коли останній підписник залишає.
+> `refCount` змушує багатоадресний Об'єкт Спостереження автоматично починати виконання, коли приходить перший підписник, і припиняти виконання, коли останній підписник залишає.
 
 Нижче наведено приклад:
+
 ```javascript
-import { interval, Subject, multicast, refCount } from 'rxjs';
+import { interval, Subject, multicast, refCount } from "rxjs";
 
 const source = interval(500);
 const subject = new Subject();
@@ -158,28 +169,28 @@ let subscription1, subscription2;
 
 // This calls `connect()`, because
 // it is the first subscriber to `refCounted`
-console.log('observerA subscribed');
+console.log("observerA subscribed");
 subscription1 = refCounted.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 
 setTimeout(() => {
-  console.log('observerB subscribed');
-  subscription2 = refCounted.subscribe({
-    next: (v) => console.log(`observerB: ${v}`),
-  });
+    console.log("observerB subscribed");
+    subscription2 = refCounted.subscribe({
+        next: (v) => console.log(`observerB: ${v}`),
+    });
 }, 600);
 
 setTimeout(() => {
-  console.log('observerA unsubscribed');
-  subscription1.unsubscribe();
+    console.log("observerA unsubscribed");
+    subscription1.unsubscribe();
 }, 1200);
 
 // This is when the shared Observable execution will stop, because
 // `refCounted` would have no more subscribers after this
 setTimeout(() => {
-  console.log('observerB unsubscribed');
-  subscription2.unsubscribe();
+    console.log("observerB unsubscribed");
+    subscription2.unsubscribe();
 }, 2000);
 
 // Logs
@@ -192,27 +203,30 @@ setTimeout(() => {
 // observerB: 2
 // observerB unsubscribed
 ```
+
 Метод `refCount()` існує лише для ConnectableObservable і повертає Об'єкт Спостереження, а не інший ConnectableObservable.
 
 ## Behaviour Суб'єкт
-Одним із варіантів Суб'єкта є BehaviorSubject, який має поняття «поточне значення». Він зберігає останнє значення, надіслане своїм споживачам, і щоразу, коли новий Спостерігач підписується, він негайно отримуватиме «поточне значення» від BehaviorSubject.
 
-> BehaviorSubjects корисні для представлення значень протягом часу». Наприклад, потік подій днів народження є Суб'єкт, але потік віку людини буде BehaviorSubject.
+Одним із варіантів Суб'єкта є `BehaviorSubject`, який має поняття «поточне значення». Він зберігає останнє значення, надіслане своїм споживачам, і щоразу, коли новий Спостерігач підписується, він негайно отримуватиме «поточне значення» від BehaviorSubject.
 
-У наступному прикладі BehaviorSubject ініціалізується значенням 0, яке отримує перший спостерігач під час підписки. Другий спостерігач отримує значення 2, навіть якщо він підписався після того, як було надіслано значення 2.
+> BehaviorSubjects корисні для представлення значень протягом часу. Наприклад, потік подій днів народження є Суб'єктом, але потік віку людини буде BehaviorSubject.
+
+У наступному прикладі BehaviorSubject ініціалізується значенням `0`, яке отримує перший Спостерігач під час підписки. Другий спостерігач отримує значення `2`, навіть якщо він підписався після того, як було надіслано значення `2`.
+
 ```javascript
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject } from "rxjs";
 const subject = new BehaviorSubject(0); // 0 is the initial value
 
 subject.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 
 subject.next(1);
 subject.next(2);
 
 subject.subscribe({
-  next: (v) => console.log(`observerB: ${v}`),
+    next: (v) => console.log(`observerB: ${v}`),
 });
 
 subject.next(3);
@@ -230,15 +244,16 @@ subject.next(3);
 
 ReplaySubject схожий на BehaviorSubject тим, що він може надсилати старі значення новим підписникам, але також може записувати частину виконання Об'єкту Спостереження.
 
-ReplaySubject записує кілька значень із виконання Об'єкту Спостереження і відтворює їх новим підписникам.
+> ReplaySubject записує кілька значень із виконання Об'єкту Спостереження і відтворює їх новим підписникам.
 
 Створюючи ReplaySubject, ви можете вказати, скільки значень відтворювати:
+
 ```javascript
-import { ReplaySubject } from 'rxjs';
+import { ReplaySubject } from "rxjs";
 const subject = new ReplaySubject(3); // buffer 3 values for new subscribers
 
 subject.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 
 subject.next(1);
@@ -247,7 +262,7 @@ subject.next(3);
 subject.next(4);
 
 subject.subscribe({
-  next: (v) => console.log(`observerB: ${v}`),
+    next: (v) => console.log(`observerB: ${v}`),
 });
 
 subject.next(5);
@@ -264,22 +279,23 @@ subject.next(5);
 // observerB: 5
 ```
 
-Ви також можете вказати час вікна в мілісекундах, крім розміру буфера, щоб визначити, скільки років можуть бути записані значення. У наступному прикладі ми використовуємо великий розмір буфера 100, але параметр часу вікна становить лише 500 мілісекунд.
+Ви також можете вказати часовий період в мілісекундах, крім розміру буфера, щоб визначити, наскільки давніми записані дані можуть бути. У наступному прикладі ми використовуємо великий розмір буфера 100, але параметр часового періоду становить лише 500 мілісекунд.
+
 ```javascript
-import { ReplaySubject } from 'rxjs';
+import { ReplaySubject } from "rxjs";
 const subject = new ReplaySubject(100, 500 /* windowTime */);
 
 subject.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 
 let i = 1;
 setInterval(() => subject.next(i++), 200);
 
 setTimeout(() => {
-  subject.subscribe({
-    next: (v) => console.log(`observerB: ${v}`),
-  });
+    subject.subscribe({
+        next: (v) => console.log(`observerB: ${v}`),
+    });
 }, 1000);
 
 // Logs
@@ -297,13 +313,15 @@ setTimeout(() => {
 ```
 
 ## Async Суб'єкт
+
 AsyncSubject — це варіант, у якому Спостерігачам надсилається лише останнє значення виконання Об'єкту Спостереження, і лише після завершення виконання.
+
 ```javascript
-import { AsyncSubject } from 'rxjs';
+import { AsyncSubject } from "rxjs";
 const subject = new AsyncSubject();
 
 subject.subscribe({
-  next: (v) => console.log(`observerA: ${v}`),
+    next: (v) => console.log(`observerA: ${v}`),
 });
 
 subject.next(1);
@@ -312,7 +330,7 @@ subject.next(3);
 subject.next(4);
 
 subject.subscribe({
-  next: (v) => console.log(`observerB: ${v}`),
+    next: (v) => console.log(`observerB: ${v}`),
 });
 
 subject.next(5);
@@ -327,28 +345,33 @@ AsyncSubject подібний до оператора `last()` тим, що ві
 
 ## Пустий Суб'єкт
 
-Іноді видане значення не має такого значення, як факт, що значення було випущено.
+Іноді не настільки важливе саме випущене значення, як факт того, що значення було випущено.
 
 Наприклад, наведений нижче код сигналізує, що минула одна секунда.
+
 ```javascript
 const subject = new Subject<string>();
 setTimeout(() => subject.next('dummy'), 1000);
 ```
-Передача фіктивного значення таким чином є незграбною та може заплутати користувачів.
 
-Оголошуючи Пустий Суб'єкт, ви сигналізуєте, що значення не має значення. Важлива лише сама подія.
+Передача фіктивного значення таким чином є зайвою та може заплутати користувачів.
+
+Оголошуючи Пустий Суб'єкт, ви сигналізуєте, що кокнретне значення не має ваги. Важлива лише сама подія.
+
 ```javascript
 const subject = new Subject<void>();
 setTimeout(() => subject.next(), 1000);
 ```
+
 Повний приклад із контекстом наведено нижче:
+
 ```javascript
-import { Subject } from 'rxjs';
+import { Subject } from "rxjs";
 
 const subject = new Subject(); // Shorthand for Subject<void>
 
 subject.subscribe({
-  next: () => console.log('One second has passed'),
+    next: () => console.log("One second has passed"),
 });
 
 setTimeout(() => subject.next(), 1000);
