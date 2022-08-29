@@ -65,26 +65,18 @@ obs.pipe(op1(), op2(), op3(), op4());
 ## Кулькові діаграми
 
 Щоб пояснити, як працюють оператори, текстових описів часто недостатньо.
-Багато операторів пов’язані з часом, вони можуть, наприклад, затримувати, відбирати, дроселювати або зменшувати викидання значень різними способами.
+Багато операторів пов’язані з часом, вони можуть, наприклад, затримувати, відбирати, дроселювати або зменшувати видання значень різними способами.
 
 Діаграми часто є кращим інструментом для цього.
 Кулькові діаграми — це візуальне представлення того, як працюють оператори, і включають вхідні Об'єкт(и) Спостереження, оператор і його параметри, а також вихідний Об'єкт Спостереження.
 
 > На кулькових діаграмах час тече зліва направо, і діаграма описує, як значення («кульки») випускаються під час виконання Об'єкту Спостереження.
 
-Нижче ви можете побачити анатомію кулькової діаграми.
-![image](https://user-images.githubusercontent.com/64136789/185767990-556eb075-31f2-4a78-ab26-67a16dd555a4.png)
-
-На цьому сайті документації ми широко використовуємо кулькові діаграми, щоб пояснити, як працюють оператори. Вони також можуть бути корисними в інших контекстах, наприклад,
-на дошці або навіть у наших модульних тестах (як діаграми ASCII).
-
-### New
-
 Об'єкти Спостереження є асинхронними операціями, тому нам потрібен спосіб представити плин часу. Це можна зробити за допомогою стрілки, що рухається зліва направо.
 
 ![image](https://miro.medium.com/max/600/1*aUjUVnDKc-JdNzD0y8IMWg.png)
 
-Вертикальна лінія на кінці стрілки означає успішне завершення Об'єкта Спостереження. Але що, якщо у Об'єкта Спостереження є помилка?
+Вертикальна лінія на кінці стрілки означає успішне завершення Об'єкта Спостереження.
 
 ![image](https://miro.medium.com/max/600/1*XopupLvHC-i6ntailoLEQw.png)
 
@@ -96,10 +88,15 @@ obs.pipe(op1(), op2(), op3(), op4());
 
 ![image](https://miro.medium.com/max/600/1*ZtA0Up-0zKXxcLwh7zc-cg.png)
 
+Нижче ви можете побачити анатомію кулькової діаграми.
+![image](https://user-images.githubusercontent.com/64136789/185767990-556eb075-31f2-4a78-ab26-67a16dd555a4.png)
+
+### New
+
 Пам’ятайте, кулькові діаграми допомагають нам зрозуміти оператори. І оператори бувають двох форм:
 
-1. Оператори створення (of, from, timer тощо)
-2. Конвеєрні оператори (map, take, filter тощо)
+1. Оператори створення (`of`, `from`, `timer` тощо)
+2. Конвеєрні оператори (`map`, `take`, `filter` тощо)
 
 Оператори створення є автономними (вони створюють власні значення), що означає, що їхні кулькові діаграми є лише однією стрілкою:
 
@@ -120,7 +117,7 @@ numbers.subscribe((x) => console.log("Next: ", x));
 // Next...
 ```
 
-І конвеєрним операторам потрібен «Input Observable» як джерело, оскільки вони самі не видають значень. Вони просто «оперують» цими значеннями. Таким чином, ви побачите кулькові діаграми для Pipable операторів з 1 або більше «Вхідними Об'єктами Спостереження», самим оператором і «Вихідним Об'єктом Спостереження».
+І Pipable операторам потрібен «Input Observable» як джерело, оскільки вони самі не видають значень. Вони просто «оперують» цими значеннями. Таким чином, ви побачите кулькові діаграми для Pipable операторів з 1 або більше «Вхідними Об'єктами Спостереження», самим оператором і «Вихідним Об'єктом Спостереження».
 
 Просто подумайте про це як про звичайні функції (технічно «чисті функції»), за винятком того, що їхні аргументи є Об'єктами Спостереження і значення, які вони повертають також є Об'єктами Спостереження.
 
@@ -130,7 +127,7 @@ numbers.subscribe((x) => console.log("Next: ", x));
 
 Важливо зауважити, що в деяких випадках порядок Об'єктів Спостереження має значення. Хоча деякі оператори повертають той самий вихідний Об'єкт Спостереження незалежно від порядку двох вхідних Об'єктів Спостереження, деякі оператори фактично використовують порядок цих вхідних даних для формування виводу.
 
-Наведений вище оператор `concat()` є чудовим прикладом цього. Зверніть увагу, як вихідний Об'єкт Спостереження повертає три значення, випущені з вхідного Об'єкта Спостереження #1, перш ніж повернути два значення, випущені з вхідного Об'єкта Спостереження #2, навіть якщо обидва значення Об'єкта Спостереження #2 були випущені до останніх двох значень Об'єкта Спостереження #1.
+Наведений вище оператор `concat()` є чудовим прикладом цього. Зверніть увагу, як вихідний Об'єкт Спостереження повертає три значення, випущені з вхідного Об'єкта Спостереження #1, перш ніж повернути два значення, випущені з вхідного Об'єкта Спостереження #2, навіть якщо обидва значення Об'єкта Спостереження #2 були випущені раніше.
 
 У RxJS ми зазвичай називаємо вхідний Об'єкт Спостереження №1 «зовнішнім», а вхідний Об'єкт Спостереження №2 — «внутрішнім».
 
@@ -156,7 +153,395 @@ outerObservable().pipe(mergeMapTo(innerObservable(), (x, y) => x + y));
 
 І нарешті, не всі оператори дотримуються концепції «внутрішніх» і «зовнішніх» Об'єктів Спостереження. Для деяких операторів, таких як `combineLatest` (ми побачимо це пізніше), усі Об'єкти Спостереження обробляються однаково, і тому ми називаємо кожен Об'єкт Спостереження «вхідним Об'єктом Спостереження».
 
-### Let’s begin translating a few of these
+## Оператори Створення
+
+Що таке оператори створення? На відміну від Pipable Operators, оператори створення — це функції, які можна використовувати для створення Об'єктів Спостереження із певною загальною попередньо визначеною поведінкою або шляхом приєднання до інших Об'єктів Спостереження.
+
+Типовим прикладом оператора створення може бути інтервальна функція. Він приймає число (не Об'єкт Спостереження) як вхідний аргумент і створює Об'єкт Спостереження на виході:
+
+```javascript
+import { interval } from "rxjs";
+
+const observable = interval(1000 /* number of milliseconds */).subscribe(
+    console.log
+);
+
+setTimeout(() => observable.unsubscribe(), 5000);
+
+// Output will be:
+// 0
+// 1
+// 2
+// 3
+// 4
+```
+
+Тут немає ніякої магії. Всі ці оператори використовують `new Observable()` всередині. Перевага їх в тому, що нам не потрібно власноруч писати одне і те ж знову і знову.
+
+Наприклад, ось як працює оператор `interval()` всередині:
+
+```javascript
+import { Observable } from "rxjs";
+
+function interval(intervalTime) {
+    let number = 0;
+    return new Observable((subscriber) => {
+        const intervalId = setInterval(
+            () => subscriber.next(number++),
+            intervalTime
+        );
+
+        return () => {
+            clearInterval(intervalId);
+        };
+    });
+}
+
+const observable = interval(1000).subscribe(console.log);
+
+setTimeout(() => observable.unsubscribe(), 5000);
+
+// Output will be:
+// 0
+// 1
+// 2
+// 3
+// 4
+```
+
+Це ще не повний приклад того, що є всередині `interval()`, але загальну суть ви розумієте.
+
+> Замість того, щоб писати свої Об'єкти Спостереження з нуля, в нас є набір операторів створення, які роблять це за нас
+
+Ось список всіх операторів створення:
+
+-   ajax ⭐
+-   create
+-   defer
+-   empty
+-   from ⭐
+-   fromEvent ⭐
+-   generate
+-   interval
+-   of ⭐
+-   range
+-   throw
+-   timer
+
+⭐ - commonly used
+
+Ми вже подивилися на роботу `interval()`, давайте ще розглянемо найбільш вживані оператори в цій статті.
+
+`from` - створює Об'єкт Спостерження з масиву, Promise, iterable.
+
+```javascript
+import { from } from "rxjs";
+
+const array = [10, 20, 30];
+const result = from(array);
+
+result.subscribe((x) => console.log(x));
+
+// Logs:
+// 10
+// 20
+// 30
+```
+
+![image](https://rxjs.dev/assets/images/marble-diagrams/from.png)
+
+`of` - створює Об'єкт Спостережння, який віддає через `next` передані дані по черзі, а потім завершається.
+
+```javascript
+import { of } from "rxjs";
+
+of(10, 20, 30).subscribe({
+    next: (value) => console.log("next:", value),
+    error: (err) => console.log("error:", err),
+    complete: () => console.log("the end"),
+});
+
+// Outputs
+// next: 10
+// next: 20
+// next: 30
+// the end
+```
+
+`fromEvent` - створює Об'єкт Спостереження з якоїсь події.
+
+```javascript
+import { fromEvent } from "rxjs";
+
+const clicks = fromEvent(document, "click");
+clicks.subscribe((x) => console.log(x));
+
+// Results in:
+// MouseEvent object logged to console every time a click
+// occurs on the document.
+```
+
+### Join Creation Operators
+
+Це оператори створення Об'єктів Спостереження, які також мають функцію об’єднання — видають значення кількох вихідних Об'єктів Спостереження.
+
+-   combineLatest
+-   concat
+-   forkJoin
+-   merge
+-   partition
+-   race
+-   zip
+
+Перш ніж почати, я пояснюю, що всі приклади використовують ці три Об'єкти Спостереження як вхідні дані.
+
+```javascript
+import { from, Observable } from "rxjs";
+
+async function* hello() {
+    const wait = async (time: number) =>
+        new Promise((res) => setTimeout(res, time));
+    yield "Hello";
+    await wait(1000);
+    yield "from";
+    await wait(500);
+    yield "iterator";
+}
+
+export const iterator$ = from(hello());
+export const arrayFrom$ = from(["Hello", "from", "array"]);
+export const arrayOfWithDelay$ =
+    new Observable() <
+    number >
+    ((subscriber) => {
+        let counter = 10;
+        const id = setInterval(() => {
+            if (counter > 0) {
+                subscriber.next(counter--);
+            } else {
+                clearInterval(id);
+                subscriber.complete();
+            }
+        }, 500);
+    });
+```
+
+`combineLatest` - Об’єднує кілька Observables для створення Observable, значення якого обчислюються з останніх значень кожного з його вхідних Observables.
+
+```javascript
+import { combineLatest } from "rxjs";
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+
+console.log(new Date().toLocaleTimeString(), `[combineLatest] start`);
+
+combineLatest([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
+    next: (res) =>
+        console.log(new Date().toLocaleTimeString(), `[combineLatest]`, res),
+    complete: () =>
+        console.log(
+            new Date().toLocaleTimeString(),
+            `[combineLatest] complete`
+        ),
+});
+```
+
+```
+12:38:22 [combineLatest] start
+12:38:22 [combineLatest] [ 'Hello', 'array', 10 ]
+12:38:23 [combineLatest] [ 'from', 'array', 10 ]
+12:38:23 [combineLatest] [ 'from', 'array', 9 ]
+12:38:23 [combineLatest] [ 'iterator', 'array', 9 ]
+12:38:23 [combineLatest] [ 'iterator', 'array', 8 ]
+12:38:24 [combineLatest] [ 'iterator', 'array', 7 ]
+12:38:24 [combineLatest] [ 'iterator', 'array', 6 ]
+12:38:25 [combineLatest] [ 'iterator', 'array', 5 ]
+12:38:25 [combineLatest] [ 'iterator', 'array', 4 ]
+12:38:26 [combineLatest] [ 'iterator', 'array', 3 ]
+12:38:26 [combineLatest] [ 'iterator', 'array', 2 ]
+12:38:27 [combineLatest] [ 'iterator', 'array', 1 ]
+12:38:27 [combineLatest] complete
+```
+
+![image](https://res.cloudinary.com/practicaldev/image/fetch/s--XIXZCEAy--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/0ixjrhbs6o70piea384a.jpg)
+
+У цьому прикладі ви можете побачити, як цей оператор випромінює масив значень кожного разу, коли обсервабель видає одне значення.
+Важливо пам’ятати, що оператор видає перше значення, коли всі спостережувані залежності видають перше значення.
+Як ви бачите, результатом оператора combineLatest є масив, де елементи відповідають порядку спостережуваних в декларації.
+
+`forkJoin` - Приймає масив ObservableInput або об’єкт словника ObservableInput і повертає Observable, який видає або масив значень у тому самому порядку, що й переданий масив, або словник значень у тій самій формі, що й переданий словник.
+
+```javascript
+import { forkJoin } from "rxjs";
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+
+console.log(new Date().toLocaleTimeString(), `[forkJoin] start`);
+
+forkJoin([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
+    next: (res) =>
+        console.log(new Date().toLocaleTimeString(), `[forkJoin]`, res),
+    complete: () =>
+        console.log(new Date().toLocaleTimeString(), `[forkJoin] complete`),
+});
+```
+
+```
+14:38:58 [forkJoin] start
+14:39:04 [forkJoin] [ 'iterator', 'array', 1 ]
+14:39:04 [forkJoin] complete
+```
+
+![image](https://res.cloudinary.com/practicaldev/image/fetch/s--oUyntFs8--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/633cbiicb2ag0n6u1lm9.jpg)
+
+forkJoin схожий на оператор combineLatest, відмінність полягає в тому, що оператор forkJoin видає лише одне значення, коли всі спостережувані параметри завершені. Простіше кажучи, оператор forkJoin видає лише останнє значення оператора combineLatest.
+
+`concat` - Створює вихідний Observable, який послідовно видає всі значення з першого заданого Observable, а потім переходить до наступного.
+
+```javascript
+import { concat } from "rxjs";
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+
+console.log(new Date().toLocaleTimeString(), `[concat] start`);
+
+concat(iterator$, arrayFrom$, arrayOfWithDelay$).subscribe({
+    next: (res) =>
+        console.log(new Date().toLocaleTimeString(), `[concat]`, res),
+    complete: () =>
+        console.log(new Date().toLocaleTimeString(), `[concat] complete`),
+});
+```
+
+```
+14:44:23 [concat] start
+14:44:23 [concat] Hello
+14:44:24 [concat] from
+14:44:24 [concat] iterator
+14:44:24 [concat] Hello
+14:44:24 [concat] from
+14:44:24 [concat] array
+14:44:25 [concat] 10
+14:44:25 [concat] 9
+14:44:26 [concat] 8
+14:44:26 [concat] 7
+14:44:27 [concat] 6
+14:44:27 [concat] 5
+14:44:28 [concat] 4
+14:44:28 [concat] 3
+14:44:29 [concat] 2
+14:44:29 [concat] 1
+14:44:30 [concat] complete
+```
+
+![image](https://res.cloudinary.com/practicaldev/image/fetch/s--Q69cz2lJ--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/cmyi538qlfm44raobivz.jpg)
+
+Як бачите, цей оператор випромінює всі значення спостережуваних у послідовності.
+Concat, на відміну від combineLatest, не запускає всі спостережувані параметри паралельно, але запускає спостережувані послідовно, починаючи з першого і не переходячи до наступного, доки поточний не буде завершено.
+
+`merge` - Створює вихідний Observable, який одночасно видає всі значення з кожного даного вхідного Observable.
+
+```javascript
+import { merge } from "rxjs";
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+
+console.log(new Date().toLocaleTimeString(), `[merge] start`);
+
+merge(iterator$, arrayFrom$, arrayOfWithDelay$).subscribe({
+    next: (res) => console.log(new Date().toLocaleTimeString(), `[merge]`, res),
+    complete: () =>
+        console.log(new Date().toLocaleTimeString(), `[merge] complete`),
+});
+```
+
+```
+14:58:48 [merge] start
+14:58:48 [merge] Hello
+14:58:48 [merge] from
+14:58:48 [merge] array
+14:58:48 [merge] Hello
+14:58:48 [merge] 10
+14:58:49 [merge] from
+14:58:49 [merge] 9
+14:58:49 [merge] iterator
+14:58:49 [merge] 8
+14:58:50 [merge] 7
+14:58:50 [merge] 6
+14:58:51 [merge] 5
+14:58:51 [merge] 4
+14:58:52 [merge] 3
+14:58:52 [merge] 2
+14:58:53 [merge] 1
+14:58:53 [merge] complete
+```
+
+![image](https://res.cloudinary.com/practicaldev/image/fetch/s--eVeMNJl7--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/1m8e0zqtn8ymn7nwgrq3.jpg)
+
+Оператор злиття подібний до оператора concat, на відміну від того, що оператор злиття запускає всі спостережувані в режимі паралельності, тому в цьому випадку всі спостережувані починаються разом, і кожного разу, коли обсервабель видає значення, оператор злиття видає це останнє значення.
+
+`race` - Повертає observable, що відображає перше джерело observable, яке видає елемент.
+
+```javascript
+import { race } from "rxjs";
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+
+console.log(new Date().toLocaleTimeString(), `[race] start`);
+
+race([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
+    next: (res) => console.log(new Date().toLocaleTimeString(), `[race]`, res),
+    complete: () =>
+        console.log(new Date().toLocaleTimeString(), `[race] complete`),
+});
+```
+
+```
+15:09:03 [race] start
+15:09:03 [race] Hello
+15:09:03 [race] from
+15:09:03 [race] array
+15:09:03 [race] complete
+```
+
+![image](https://res.cloudinary.com/practicaldev/image/fetch/s--CRsl-Y19--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/c6xo26df399om1tfj3lc.jpg)
+
+Цей оператор особливий, він видає першу спостережувану, яка випромінює перше значення. Іншими словами, він бере швидший спостережуваний і ігнорує інші.
+
+`zip` - Об’єднує кілька Observables для створення Observable, значення якого обчислюються зі значень у порядку кожного вхідного Observable.
+
+```javascript
+import { zip } from "rxjs";
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+
+console.log(new Date().toLocaleTimeString(), `[zip] start`);
+
+zip([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
+    next: (res) => console.log(new Date().toLocaleTimeString(), `[zip]`, res),
+    complete: () =>
+        console.log(new Date().toLocaleTimeString(), `[zip] complete`),
+});
+```
+
+```
+15:09:27 [zip] start
+15:09:27 [zip] [ 'Hello', 'Hello', 10 ]
+15:09:28 [zip] [ 'from', 'from', 9 ]
+15:09:28 [zip] [ 'iterator', 'array', 8 ]
+15:09:28 [zip] complete
+```
+
+![image](https://res.cloudinary.com/practicaldev/image/fetch/s--S9YG5WMo--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_880/https://dev-to-uploads.s3.amazonaws.com/uploads/articles/4wk2khoruej9urxlm1de.jpg)
+
+Цей оператор може здатися дивним, але він може використовуватися для об’єднання в порядку значень різницевих спостережуваних.
+У цьому прикладі ми маємо 3 спостережувані:
+
+iterator$: ['Привіт', 'від', 'iterator', '!']
+arrayFrom$: ['Привіт', 'від', 'масив', '!']
+arrayOfWithDelay$: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+За допомогою оператора zip ми об’єднуємо значення в порядку їх індексу:
+
+['Привіт', 'Привіт', 10]
+['від', 'від', 9]
+['ітератор', 'масив', 8]
+Як ви бачите, оператор припиняє видавати значення на індексі першої завершеної обсерваблі.
+
+## Pipable оператори
 
 Нижче наведено деякі з найпоширеніших операторів і способи тлумачення їхніх кулькових діаграм.
 
@@ -179,13 +564,15 @@ inputObservable()
 
 ![image](https://miro.medium.com/max/700/1*4Jg3vWN82T4R2N1QW4WJPg.gif)
 
-Ми зробимо ще одну просту, а потім перейдемо до складніших. Нижче наведено оператор `take()`.
+Нижче наведено оператор `take()`.
 
 ![image](https://miro.medium.com/max/700/1*cP6hRnkMKXtHsqvEu0qo5A.png)
 
 На наведеній вище діаграмі вхідний Об'єкт Спостереження віддає чотири цілі числа — `1`, `2`, `3` і `4`. Якби ви підписалися на цей вхідний Об'єкт Спостереження напряму, ви б отримали ці чотири значення.
 
-Але якщо ви передаєте оператор `take(2)` по каналу, новий вихідний Об'єкт Спостереження захопить перші два виданих значення, а потім завершиться. Вхідний Об'єкт Спостереження все ще видаватиме останні два значення, але наш вихідний Об'єкт Спостереження їх не бачитиме, оскільки він завершився після двох значень. Нижче наведено код і візуалізацію.
+Але якщо ви передаєте оператор `take(2)` по каналу, новий вихідний Об'єкт Спостереження захопить перші два виданих значення, а потім завершиться. Вхідний Об'єкт Спостереження все ще видаватиме останні два значення, але наш вихідний Об'єкт Спостереження їх не бачитиме, оскільки він завершився після двох значень.
+
+Нижче наведено код і візуалізацію:
 
 ```javascript
 import { interval } from "rxjs";
@@ -197,20 +584,6 @@ inputObservable().pipe(take(2));
 ```
 
 ![image](https://miro.medium.com/max/700/1*k1suhVSk3QsosfOiyqBB3A.gif)
-
-## Оператори Створення
-
-Що таке оператори створення? На відміну від Pipable Operators, оператори створення — це функції, які можна використовувати для створення Об'єктів Спостереження із певною загальною попередньо визначеною поведінкою або шляхом приєднання до інших Об'єктів Спостереження.
-
-Типовим прикладом оператора створення може бути інтервальна функція. Він приймає число (не Об'єкт Спостереження) як вхідний аргумент і створює Об'єкт Спостереження на виході:
-
-```javascript
-import { interval } from "rxjs";
-
-const observable = interval(1000 /* number of milliseconds */);
-```
-
-Перегляньте список усіх статичних операторів створення тут.
 
 ## Об'єкти Спостереження вищого порядку
 
