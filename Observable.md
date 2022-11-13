@@ -2,7 +2,9 @@
 
 ## Анатомія Об'єкта Спостереження
 
-Об'єкти Спостереження **створюються** за допомогою `new Observable` або оператора створення(`of(), from(), interval()` etc), на них **підписується** Спостерігач, **виконуються** для доставки сповіщень `next`/`error`/`complete` до Спостерігача, і їхнє виконання може бути **припинено**. Усі ці чотири аспекти закодовані в екземплярі Об'єкта Спостереження, але деякі з цих аспектів пов’язані з іншими типами, наприклад Спостерігач і Підписка.
+Об'єкти Спостереження **створюються** за допомогою `new Observable` або оператора створення(`of(), from(), interval()` etc), на них **підписується** Спостерігач, вони **виконуються** для доставки сповіщень `next`/`error`/`complete` до Спостерігача, і їхнє виконання може бути **припинено**.
+
+Усі ці чотири аспекти закодовані в екземплярі Об'єкта Спостереження, але деякі з цих аспектів пов’язані з іншими типами, наприклад Спостерігач і Підписка.
 Основні завдання Об'єкту Спостереження:
 
 -   Створення Об'єктів Спостереження
@@ -16,12 +18,12 @@
 У наступному прикладі створюється Об'єкт Спостереження, який щосекунди надсилає підписнику рядок «hi».
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const observable = new Observable(function subscribe(subscriber) {
-    const id = setInterval(() => {
-        subscriber.next("hi");
-    }, 1000);
+	const id = setInterval(() => {
+		subscriber.next('hi');
+	}, 1000);
 });
 ```
 
@@ -33,29 +35,29 @@ const observable = new Observable(function subscribe(subscriber) {
 
 ```javascript
 observable.subscribe({
-    next: (x) => console.log(x),
-    error: (err) => console.log("err", err),
-    complete: () => console.log("Completed"),
+	next: (x) => console.log(x),
+	error: (err) => console.log('err', err),
+	complete: () => console.log('Completed'),
 });
 ```
 
 Це не випадково, що `observable.subscribe` і `subscribe` в `new Observable(function subscribe(subscriber) {...})` мають однакові назви. У бібліотеці вони трошки відрізняються, але для практичних цілей ви можете вважати їх концептуально рівноправними.
 
-Це показує, як виклики підписки не розподіляються між декількома Спостерігачами одного Об'єкту Спостереження. Під час виклику `observable.subscribe`, функція `subscribe` у `new Observable(function subscribe(subscriber) {...})` виконується для цього підписника. Кожен виклик `observable.subscribe` запускає власний незалежний виклик для кожного підписника.
+Це показує, як виклики `subscribe` не використовуються одночано декількома Спостерігачами одного Об'єкту Спостереження. Під час виклику `observable.subscribe`, функція `subscribe` у `new Observable(function subscribe(subscriber) {...})` виконується для цього підписника. Кожен виклик `observable.subscribe` запускає власний незалежний виклик для кожного підписника.
 
 > Підписка на Об'єкт Спостереження схожа на виклик функції, в яку ми аргументом передаємо зворотні виклики, куди будуть доставлені дані.
 
-Це суттєво відрізняється від WEB API обробників подій, таких як `addEventListener` / `removeEventListener`. З `observable.subscribe` даний Спостерігач не зареєстрований як слухач в Об'єкта Спостереження. Об'єкт Спостереження навіть не підтримує список приєднаних Спостерігачів.
+Це суттєво відрізняється від WEB API обробників подій, таких як `addEventListener` / `removeEventListener`. З `observable.subscribe` даний Спостерігач не зареєстрований як слухач в Об'єкта Спостереження. Об'єкт Спостереження навіть не підтримує список приєднаних Спостерігачів.??
 
 Виклик `subscribe` — це просто спосіб розпочати «виконання Об'єкту Спостереження» та доставити значення або події Спостерігачу цього виконання.
 
 ### Виконання Об'єктів Спостереження
 
-Код усередині `new Observable(function subscribe(subscriber) {...})` представляє «виконання Об'єкту Спостереження», відкладене обчислення, яке відбувається лише для кожного Спостерігача, який підписався. Виконання створює множину значень з часом, синхронно чи асинхронно.
+Код усередині `new Observable(function subscribe(subscriber) {...})` представляє «виконання Об'єкту Спостереження», відкладене обчислення, яке відбувається лише для одного Спостерігача, який підписався. Виконання створює множину значень з часом (від 0 до безкінечності), синхронно чи асинхронно.
 
-Існує три типи значень, які може надати виконання Об'єкту Спостереження:
+Існує три типи значень, які може надати?? виконання Об'єкту Спостереження:
 
--   `next` сповіщення: надсилає таке значення, як число, рядок, об’єкт тощо.
+-   `next` сповіщення: надсилає таке значення, як число, рядок, об’єкт тощо??.
 -   `error` сповіщення: надсилає повідомлення про помилку JavaScript або виняток.
 -   `complete` сповіщення: не надсилає значення.
 
@@ -66,50 +68,52 @@ observable.subscribe({
 Нижче наведено приклад виконання Об'єкту Спостереження, який надсилає три сповіщення «Наступний», а потім завершується:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const observable = new Observable(function subscribe(subscriber) {
-    subscriber.next(1);
-    subscriber.next(2);
-    subscriber.next(3);
-    subscriber.complete();
+	subscriber.next(1);
+	subscriber.next(2);
+	subscriber.next(3);
+	subscriber.complete();
 });
 ```
 
 Об'єкти Спостереження суворо дотримуються Observable Contract, тому наступний код не доставить сповіщення `subscriber.next(4)`:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const observable = new Observable(function subscribe(subscriber) {
-    subscriber.next(1);
-    subscriber.next(2);
-    subscriber.next(3);
-    subscriber.complete();
-    subscriber.next(4); // Is not delivered because it would violate the contract
+	subscriber.next(1);
+	subscriber.next(2);
+	subscriber.next(3);
+	subscriber.complete();
+	subscriber.next(4); // Is not delivered because it would violate the contract
 });
 ```
 
 Гарною ідеєю буде загорнути будь-який код в функції `subscribe` блоком `try/catch`, який надсилатиме сповіщення про помилку, якщо отримає виняток:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const observable = new Observable(function subscribe(subscriber) {
-    try {
-        subscriber.next(1);
-        subscriber.next(2);
-        subscriber.next(3);
-        subscriber.complete();
-    } catch (err) {
-        subscriber.error(err); // delivers an error if it caught one
-    }
+	try {
+		subscriber.next(1);
+		subscriber.next(2);
+		subscriber.next(3);
+		subscriber.complete();
+	} catch (err) {
+		subscriber.error(err); // delivers an error if it caught one
+	}
 });
 ```
 
 ### Скасування виконання Об'єктів Спостереження
 
-Оскільки виконання Об'єктів Спостереження може бути нескінченним, а Спостерігач зазвичай хоче перервати виконання в певний момент, нам потрібен API для скасування виконання. Оскільки кожне виконання є ексклюзивним лише для одного Спостерігача, щойно Спостерігач закінчить отримання значень, він повинен мати спосіб зупинити виконання, щоб уникнути марної витрати обчислювальної потужності або ресурсів пам’яті.
+Оскільки виконання Об'єктів Спостереження може бути нескінченним, а Спостерігач зазвичай хоче перервати виконання в певний момент, нам потрібен API для скасування виконання.
+
+Оскільки кожне виконання є ексклюзивним лише для одного Спостерігача, щойно Спостерігач закінчить отримання значень, він повинен мати спосіб зупинити виконання, щоб уникнути марної витрати обчислювальної потужності або ресурсів пам’яті.
 
 Коли викликається `observable.subscribe`, Спостерігач прив'язується до щойно створеного виконання Об'єкту Спостереження. Цей виклик також повертає об’єкт, `Subscription`:
 
@@ -117,10 +121,10 @@ const observable = new Observable(function subscribe(subscriber) {
 const subscription = observable.subscribe((x) => console.log(x));
 ```
 
-Підписка представляє поточне виконання та має мінімальний API, який дозволяє скасувати це виконання. Детальніше про тип підписки читайте тут. За допомогою `subscription.unsubscribe()` ви можете скасувати поточне виконання:
+Підписка представляє поточне виконання та має мінімальний API, який дозволяє скасувати це виконання. За допомогою `subscription.unsubscribe()` ви можете скасувати поточне виконання:
 
 ```javascript
-import { from } from "rxjs";
+import { from } from 'rxjs';
 
 const observable = from([10, 20, 30]);
 const subscription = observable.subscribe((x) => console.log(x));
@@ -130,21 +134,21 @@ subscription.unsubscribe();
 
 > Коли ви підписуєтеся, ви отримуєте назад підписку, яка представляє поточне виконання. Просто викличте `unsubscribe()`, щоб скасувати виконання.
 
-Кожен Об'єкт Спостереження повинен визначати, як розпоряджатися ресурсами цього виконання, коли ми створюємо Об'єкт Спостереження за допомогою `new Observable(function subscribe() {...})`. Ви можете зробити це, повернувши спеціальну функцію скасування підписки з функції `subscribe()`.
+Кожен Об'єкт Спостереження повинен визначати, як розпоряджатися ресурсами цього виконання, коли ми створюємо Об'єкт Спостереження за допомогою `new Observable(function subscribe() {...})`. Ви можете зробити це, повернувши спеціальну функцію скасування підписки з функції `subscribe()`.??
 
 Наприклад, ось як ми очищаємо інтервальне виконання за допомогою `setInterval`:
 
 ```javascript
 const observable = new Observable(function subscribe(subscriber) {
-    // Keep track of the interval resource
-    const intervalId = setInterval(() => {
-        subscriber.next("hi");
-    }, 1000);
+	// Keep track of the interval resource
+	const intervalId = setInterval(() => {
+		subscriber.next('hi');
+	}, 1000);
 
-    // Provide a way of canceling and disposing the interval resource
-    return function unsubscribe() {
-        clearInterval(intervalId);
-    };
+	// Provide a way of canceling and disposing the interval resource
+	return function unsubscribe() {
+		clearInterval(intervalId);
+	};
 });
 ```
 
@@ -152,13 +156,13 @@ const observable = new Observable(function subscribe(subscriber) {
 
 ```javascript
 function subscribe(subscriber) {
-    const intervalId = setInterval(() => {
-        subscriber.next("hi");
-    }, 1000);
+	const intervalId = setInterval(() => {
+		subscriber.next('hi');
+	}, 1000);
 
-    return function unsubscribe() {
-        clearInterval(intervalId);
-    };
+	return function unsubscribe() {
+		clearInterval(intervalId);
+	};
 }
 
 const unsubscribe = subscribe({ next: (x) => console.log(x) });
@@ -171,9 +175,9 @@ unsubscribe(); // dispose the resources
 
 ## Визначення
 
-Об'єкти Спостереження — це ліниві Push-колекції даних, які можуть надходити з часом.
+Об'єкти Спостереження — це ліниві Push-колекції?? даних, які можуть надходити з часом.
 
-З визначення ми можемо виділити 2 основні пункти:
+З визначення ми можемо виділити 3 основні пункти:
 
 -   це колекції даних, які надходять з часом
 -   вони ліниві
@@ -190,7 +194,7 @@ unsubscribe(); // dispose the resources
 
 В даній статті ми не будемо обговорювати всі тонкощі роботи з масивами, а згадаємо тільки речі, які допоможуть нам зрозуміти Об'єкти Спостереження краще.
 
-1. Масив - це колекція даних. По-суті, це контейнер(`[]`), в який ми поміщаємо однорідні дані.
+Масив - це колекція даних. По-суті, це контейнер(`[]`), в який ми поміщаємо однорідні дані.
 
 Звісно, ми можемо створювати масиви з абсолютно різними значеннями `['string', 3, {key: value}]`, але на практиці цього майже ніколи не робимо, тому що одна з переваг масивів в тому, що ми можемо робити ідентичні операції над кожним елементом масиву.
 
@@ -200,12 +204,12 @@ unsubscribe(); // dispose the resources
 
 ```javascript
 function map(array, projectionFn) {
-    const newArray = [];
+	const newArray = [];
 
-    for (let i = 0; i < array.length; i++) {
-        newArray.push(projectionFn(array[i]));
-    }
-    return newArray;
+	for (let i = 0; i < array.length; i++) {
+		newArray.push(projectionFn(array[i]));
+	}
+	return newArray;
 }
 
 const numbers = [1, 3, 9];
@@ -214,14 +218,14 @@ const multipliedByTwo = map(numbers, (x) => x * 2); // [2, 6, 18]
 
 ```javascript
 function filter(array, predicateFn) {
-    const newArray = [];
+	const newArray = [];
 
-    for (let i = 0; i < array.length; i++) {
-        if (predicateFn(array[i])) {
-            newArray.push(array[i]);
-        }
-    }
-    return newArray;
+	for (let i = 0; i < array.length; i++) {
+		if (predicateFn(array[i])) {
+			newArray.push(array[i]);
+		}
+	}
+	return newArray;
 }
 
 const numbers = [1, 3, 9];
@@ -277,10 +281,10 @@ arr.forEach((element) => console.log(element));
 Подумайте, як працює цей код:
 
 ```javascript
-const someDomElement = document.getElementById("someDomElement");
+const someDomElement = document.getElementById('someDomElement');
 
-const handle = someDomElement.addEventListener("click", (event) => {
-    console.log("got a click event");
+const handle = someDomElement.addEventListener('click', (event) => {
+	console.log('got a click event');
 });
 
 // assuming the user clicks on someDomElement 5 times, you'll see
@@ -356,9 +360,7 @@ Xочете отримати назви? Допоможе `map`. Хочете л
 Розглянемо завдання фільтрування колекції фільмів за режисером і зіставлення лише з їхніми назвами та роком:
 
 ```javascript
-favoriteMovies
-    .filter((movie) => movie.director === "John Hughes")
-    .map((movie) => ({ name: movie.name, year: movie.year }));
+favoriteMovies.filter((movie) => movie.director === 'John Hughes').map((movie) => ({ name: movie.name, year: movie.year }));
 
 // We end up with a container with the values:
 // { name: "The Breakfast Club", year: 1986 }
@@ -436,7 +438,7 @@ RxJS представляє Об'єкти Спостереження(Observables
 
 -   Функція — це обчислення з лінивим виконанням, яке синхронно повертає одне значення під час виклику.
 -   Генератор — це обчислення з лінивим виконанням, яке синхронно повертає від нуля до (потенційно) нескінченних значень ітеративно.
--   Обіцянка — це обчислення, яке може (або не може) зрештою повернути одне значення.
+-   Обіцянка — це обчислення, яке може (або не може) зрештою повернути одне значення асинхронно.
 -   Об'єкт Спостереження — це обчислення з лінивим виконанням, яке може синхронно або асинхронно повертати від нуля до (потенційно) нескінченної кількості значень з моменту його виклику.
 
 ## Вони ліниві
@@ -444,25 +446,25 @@ RxJS представляє Об'єкти Спостереження(Observables
 Саме по собі, створення Об'єкту Спостереження нічого не робить, для того, щоб почати отримувати дані, нам потрібно на нього підписатися:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const observable = new Observable((subscriber) => {
-    subscriber.next(1);
-    subscriber.next(2);
-    subscriber.next(3);
-    setTimeout(() => {
-        subscriber.next(4);
-        subscriber.complete();
-    }, 1000);
+	subscriber.next(1);
+	subscriber.next(2);
+	subscriber.next(3);
+	setTimeout(() => {
+		subscriber.next(4);
+		subscriber.complete();
+	}, 1000);
 });
 
-console.log("just before subscribe");
+console.log('just before subscribe');
 observable.subscribe({
-    next: (x) => console.log("got value " + x),
-    error: (err) => console.error("something wrong occurred: " + err),
-    complete: () => console.log("done"),
+	next: (x) => console.log('got value ' + x),
+	error: (err) => console.error('something wrong occurred: ' + err),
+	complete: () => console.log('done'),
 });
-console.log("just after subscribe");
+console.log('just after subscribe');
 ```
 
 В консолі ми побачимо:
@@ -479,7 +481,7 @@ done
 
 ### Об'єкти Спостереження як узагальнення функцій
 
-Всупереч популярним твердженням, Об'єкти Спостереження не схожі на EventEmitters і не схожі на Promises для кількох значень. У деяких випадках Об'єкти Спостереження можуть діяти як EventEmitters, а саме, коли вони багатоадресні за допомогою RxJS Subjects, але зазвичай вони не діють як EventEmitters.
+Всупереч популярним твердженням, Об'єкти Спостереження не схожі на EventEmitters і не схожі на Promises для кількох значень. У деяких випадках Об'єкти Спостереження можуть діяти як EventEmitters, а саме, коли вони багатоадресні за допомогою RxJS Subjects, але зазвичай вони не діють як EventEmitters.??
 
 > Об'єкти Спостереження схожі на функції без аргументів, які узагальнили для того, щоб вони могли віддати множину значень.
 
@@ -487,8 +489,8 @@ done
 
 ```javascript
 function foo() {
-    console.log("Hello");
-    return 42;
+	console.log('Hello');
+	return 42;
 }
 
 const x = foo.call(); // те ж саме, що і foo()
@@ -509,18 +511,18 @@ console.log(y);
 Ви можете написати ту саму поведінку вище, але з Об'єктом Спостереження:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const foo = new Observable((subscriber) => {
-    console.log("Hello");
-    subscriber.next(42);
+	console.log('Hello');
+	subscriber.next(42);
 });
 
 foo.subscribe((x) => {
-    console.log(x);
+	console.log(x);
 });
 foo.subscribe((y) => {
-    console.log(y);
+	console.log(y);
 });
 ```
 
@@ -541,14 +543,14 @@ foo.subscribe((y) => {
 
 На відміну від EventEmitters, які мають спільні побічні ефекти та нетерпляче виконуються незалежно від наявності підписників, Об'єкти Спостереження не мають спільного виконання та є ледачими.
 
-> Підписування на Об'єкт Спостереження є аналогом виклику Функції.
+> Підписка на Об'єкт Спостереження є аналогом виклику Функції.
 
 Дехто думає, що Об'єкти Спостереження є асинхронними. Це не правда. Наприклад:
 
 ```javascript
-console.log("before");
+console.log('before');
 console.log(foo.call());
-console.log("after");
+console.log('after');
 ```
 
 Ви побачите такий результат:
@@ -563,11 +565,11 @@ console.log("after");
 Те ж саме з Об'єктом Спостереження:
 
 ```javascript
-console.log("before");
+console.log('before');
 foo.subscribe((x) => {
-    console.log(x);
+	console.log(x);
 });
-console.log("after");
+console.log('after');
 ```
 
 Виведе:
@@ -587,29 +589,29 @@ console.log("after");
 
 ```javascript
 function foo() {
-    console.log("Hello");
-    return 42;
-    return 100; // dead code. will never happen
+	console.log('Hello');
+	return 42;
+	return 100; // dead code. will never happen
 }
 ```
 
 Функції можуть повертати лише одне значення. Об'єкти Спостереження, однак, можуть це зробити:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const foo = new Observable((subscriber) => {
-    console.log("Hello");
-    subscriber.next(42);
-    subscriber.next(100); // "return" another value
-    subscriber.next(200); // "return" yet another
+	console.log('Hello');
+	subscriber.next(42);
+	subscriber.next(100); // "return" another value
+	subscriber.next(200); // "return" yet another
 });
 
-console.log("before");
+console.log('before');
 foo.subscribe((x) => {
-    console.log(x);
+	console.log(x);
 });
-console.log("after");
+console.log('after');
 ```
 
 Поверне:
@@ -626,23 +628,23 @@ console.log("after");
 Але ви також можете "повертати" значення асинхронно:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 const foo = new Observable((subscriber) => {
-    console.log("Hello");
-    subscriber.next(42);
-    subscriber.next(100);
-    subscriber.next(200);
-    setTimeout(() => {
-        subscriber.next(300); // happens asynchronously
-    }, 1000);
+	console.log('Hello');
+	subscriber.next(42);
+	subscriber.next(100);
+	subscriber.next(200);
+	setTimeout(() => {
+		subscriber.next(300); // happens asynchronously
+	}, 1000);
 });
 
-console.log("before");
+console.log('before');
 foo.subscribe((x) => {
-    console.log(x);
+	console.log(x);
 });
-console.log("after");
+console.log('after');
 ```
 
 Виведе:
