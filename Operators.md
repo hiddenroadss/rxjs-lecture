@@ -6,26 +6,247 @@ RxJS в основному корисний своїми операторами,
 
 ## Що таке оператори?
 
-Оператори - це функції. Їх існує два типи:
+Оператори - це функції, які повертають Об'єкт Спостереження.
 
-Pipable operators – це тип, який можна передати в Об'єкт Спостереження за допомогою синтаксису `observableInstance.pipe(operator())`.
+Їх існує два типи:
+
+1. Оператори створення - інкапсулють всередині логіку створення Об'єкту Спостереження і повертають його.
+2. Оператори трансформації - приймають аргументом один Об'єкт Спостереження, підписуються на нього, трансформують логіку і повертають інший.
+
+Поговоримо спочатку про оператори створення, так як їх легше зрозуміти. Ми з вами вже створювали Об'єкти Спостереження за допомогою `new Observable(...)` і можна помітити, що це вимагає від нас написання досить великого шматка коду.
+
+Для нашої зручності в RxJS є оператори створення - функції, які інкапсулюють всередині логіку по створенню Об'єкту Спостереження і дають нам писати код декларативно.
+
+```js
+const observable$ = new Observable((subscriber) => {
+	subscriber.next(1);
+	subscriber.next(2);
+	subscriber.next(3);
+	subscriber.complete();
+});
+
+// Працює аналогічно
+const observable2$ = of(1, 2, 3);
+```
+
+```js
+function fromEvent(element, event) {
+	return new Observable((subscriber) => {
+		const callback = (e) => {
+			subscriber.next(e);
+		};
+		element.addEventListener(event, callback);
+
+		return function () {
+			element.removeEventListener(event, callback);
+		};
+	});
+}
+
+function of(...args) {
+	return new Observable((subscriber) => {
+		args.forEach((item) => {
+			subscriber.next(item);
+		});
+		subscriber.complete();
+	});
+}
+```
+
+Ще однією перевагою використання функцій є можливість замикання. Можемо розглянути приклад з інтервалом:
+
+```js
+function interval(intervalInMs) {
+	let count = 0;
+	return new Observable((subscriber) => {
+		const intervalRef = setInterval(() => subscriber.next(count++), intervalInMs);
+
+		return function () {
+			clearInterval(intervalRef);
+		};
+	});
+}
+```
+
+В даному випадку нам потрібно зберігати десь змінну `count` і замикання для цього ідеально підходить.
+
+Після того, як ми розглянули приклади того, як би ми створювали ці Об'єкти Спостереження з нуля, ми можемо оцінити те, що бібліотека зробила більшість роботи за нас і все, що нам потрібно - це викликати правильний оператор:
+
+```js
+import { interval, fromEvent, ajax } from 'rxjs';
+const interval$ = interval(1000);
+
+const button = document.queryElement('.button');
+const buttonClicks$ = fromEvent(button, 'click');
+
+const apiRequest$ = ajax('someurl');
+```
+
+### Оператори трансформації
+
+Оператори трансформації приймають аргументом один Об'єкт Спостереження, підписуються на нього і повертають інший Об'єкт Спостереження трансформувавши в ньому логіку.
+
+```ts
+function increment(source: Observable<any>) {
+	return new Observable((subscriber) => {
+		const sub = source.subscribe({
+			next: (data) => subscriber.next(data + 1),
+			error: (err) => subscriber.error(err),
+			complete: () => subscriber.complete(),
+		});
+
+		return () => {
+			sub.unsubscribe();
+		};
+	});
+}
+```
+
+Як же ми можемо його використовувати? Давайте почнемо з першого, що приходить в голову:
+
+```ts
+const observable$ = of(1, 2, 3);
+
+const incremented$ = increment(observable$);
+
+// Виведе 2, 3, 4
+incremented$.subscribe(console.log);
+```
+
+Як і написано в визначенні, ми просто передали оператору аргументом вхідний Об'єкт Спостереження і отримали новий, трансформований Об'єкт Спостереження.
+
+В чому недоліки такого підходу?
+
+Давайте створимо ще один оператор `multiplyByTwo`:
+
+```ts
+function multiplyByTwo(source: Observable<any>) {
+	return new Observable((subscriber) => {
+		return source.subscribe({
+			next: (data) => subscriber.next(data * 2),
+			error: (err) => subscriber.error(err),
+			complete: () => subscriber.complete(),
+		});
+	});
+}
+
+const observable$ = of(1, 2, 3);
+
+const result$ = multiplyByTwo(increment(observable$));
+
+// Виведе 4, 6, 8
+result$.subscribe(console.log);
+```
+
+В даному випадку ми хочемо спочатку збільшити число на одиницю, а потім помножити число на два. Як це працює? Джаваскрипт бачить функцію і її виклик. Щоб розпочати виконання йому треба передати аргументи, які ми туди поставили. В нашому випадку він не може це зробити одразу, тому що ми передали не об'єкт, рядок, функцію, тощо, а _виклик_ функції. Для того, щоб отримати результат йому потрібно її виконати. Отже він спочатку виконує `increment(observable$)`. В цьому випадку аргументом ми передаємо вже не виклик функції, тому вона відпрацьовує і повертає нам новий Об'єкт Спостереження, який буде інкрементувати число перед віддачею його підписнику. Тепер у нас у виклику функції `multiplyByTwo` не інший виклик функції, а Об'єкт Спостереження і ми можемо викликати її. Отримуємо новий Об'єкт Спостереження, який додатково буде множити число на 2 перед віддачею його підписнику.
+
+Якщо додати ще один оператор вийде це:
+
+```js
+const observable$ = of(1, 2, 3);
+
+const result$ = increment(multiplyByTwo(increment(observable$)));
+
+// Виведе 5, 7, 9
+result$.subscribe(console.log);
+```
+
+<!-- До речі, тепер ви бачите, чому саме оператор - це функція, яка приймає один аргумент - вхідний Об'єкт Спостереження і завжди віддає новий Об'єкт Спостереження. Це дозволяє нам робити ланцюги з операторів -->
+
+Згодьтеся, більшості людей це буде досить складно читати, так як виконання йде справа наліво (або зсередини назовні). Хоча це один з варіантів виконання функцій в функціональному програмуванні і до цього легко звикнути. Але є інший аспект, який робить роботу з таким підходом майже неможливою.
+
+В наших прикладах з операторами `increment` i `multiplyByTwo` ми використовували максимально просту логіку. В реальному світі ми будемо створювати щось гнучкіше, наприклад оператор `multiply`, який буде приймати аргументом число на яке нам треба помножити інше.
+
+Як же ми можемо це вирішити, якщо ми знаємо, що оператор _має_ приймати один аргумент - вхідний Об'єкт Спостереження?
+
+Наша відповідь - замикання:
+
+```ts
+function multiply(multiplier: number) {
+	return function (source: Observable<number>) {
+		return new Observable((subscriber) => {
+			return source.subscribe({
+				next: (data) => subscriber.next(data * multiplier),
+				error: (err) => subscriber.error(err),
+				complete: () => subscriber.complete(),
+			});
+		});
+	};
+}
+```
+
+Як це працює?:
+
+```ts
+const observable$ = of(1, 2, 3);
+
+const result$ = multiply(2)(increment(observable$));
+
+// Виведе 4, 6, 8
+result$.subscribe(console.log);
+```
+
+Джаваскрипт бачить функцію `multiply` і її виклик з аргрументом `2`. Викликає її і отримує назад функцію, яка приймає вхідний Об'єкт Спостереження і віддає новий. Єдина відмінність в тому, що в замиканні цієї функції вже є змінна `multiplier`, яку ми і будемо використовувати далі `subscriber.next(data * multiplier)`. Ось і вся магія.
+
+Для повноти експерименту давайте зробимо оператор `increment` також гнучким:
+
+```ts
+function incrementBy(num: number) {
+	return function (source: Observable<number>) {
+		return new Observable((subscriber) => {
+			return source.subscribe({
+				next: (data) => subscriber.next(data + num),
+				error: (err) => subscriber.error(err),
+				complete: () => subscriber.complete(),
+			});
+		});
+	};
+}
+```
+
+тоді наш виклик буде:
+
+```ts
+const observable$ = of(1, 2, 3);
+
+const result$ = multiply(2)(incrementBy(5)(observable$));
+
+// Виведе 12, 14, 16
+result$.subscribe(console.log);
+```
+
+Погодьтеся, даний код читати дуже-дуже складно. А це всього лише 2 оператори. Рішення цієї проблеми ми можемо знайти також у функціональному програмуванні.
+
+```ts
+const observable$ = of(1, 2, 3);
+
+const result$ = observable$.pipe(incrementBy(5), multiply(2));
+
+// Виведе 12, 14, 16
+result$.subscribe(console.log);
+```
+
+<!-- Pipable operators – це тип, який можна передати в Об'єкт Спостереження за допомогою синтаксису `observableInstance.pipe(operator())`.
 При виклику вони не змінюють існуючий екземпляр Об'єкту Спостреження.
 Замість цього вони повертають новий Об'єкт Спостереження, логіка підписки якого базується на першому.
 
 > Pipeable оператор — це функція, яка приймає Об'єкт Спостереження як вхідні дані та повертає інший Об'єкт Спостереження. Це чиста операція: вхідний Об'єкт Спостереження залишається незмінним.
 
 Pipeable оператор є по суті чистою функцією, яка приймає один Об'єкт Спостереження як вхідні дані та генерує інший Об'єкт Спостереження як вихідні дані. Підписка на вихідний Об'єкт Спостереження також підписується на вхідний Об'єкт Спостереження.
+?? Example
 
-**Оператори створення** — це інший вид операторів, які можна викликати як окремі функції для створення нового Об'єкту Спостереження. Наприклад: `of(1, 2, 3)` створює Об'єкт Спостереження, який буде віддавати 1, 2 і 3 один за одним. Оператори створення будуть розглянуті більш детально в наступному розділі.
+**Оператори створення** — це інший вид операторів, які можна викликати як окремі функції для створення нового Об'єкту Спостереження.
 
-Наприклад, оператор під назвою `map` є аналогом однойменного методу `Array`. Подібно до того, як `[1, 2, 3].map(x => x * x) дасть [1, 4, 9]`, Об'єкт Спостереження створюється так:
+Наприклад: `of(1, 2, 3)` створює Об'єкт Спостереження, який буде віддавати 1, 2 і 3 один за одним. Оператори створення будуть розглянуті більш детально в наступному розділі.
+
+Наприклад, оператор під назвою `map` є аналогом однойменного методу `Array.prototype.map`. Подібно до того, як `[1, 2, 3].map(x => x * x)` дасть `[1, 4, 9]`, Об'єкт Спостереження створюється так:
 
 ```javascript
-import { of, map } from "rxjs";
+import { of, map } from 'rxjs';
 
 of(1, 2, 3)
-    .pipe(map((x) => x * x))
-    .subscribe((v) => console.log(`value: ${v}`));
+	.pipe(map((x) => x * x))
+	.subscribe((v) => console.log(`value: ${v}`));
 
 // Logs:
 // value: 1
@@ -33,27 +254,27 @@ of(1, 2, 3)
 // value: 9
 ```
 
-видасть 1, 4, 9. Іншим корисним оператором є `first`:
+видасть `1, 4, 9`. Іншим корисним оператором є `first`??:
 
 ```javascript
-import { of, first } from "rxjs";
+import { of, first } from 'rxjs';
 
 of(1, 2, 3)
-    .pipe(first())
-    .subscribe((v) => console.log(`value: ${v}`));
+	.pipe(first())
+	.subscribe((v) => console.log(`value: ${v}`));
 
 // Logs:
 // value: 1
 ```
 
-Зауважте, що `map` потрібно створювати на льоту, оскільки їй потрібно надати функцію відображення.
+Зауважте, що `map` потрібно створювати на льоту, оскільки їй потрібно надати функцію відображення.??
 На відміну від цього, `first` може бути константою, але все одно створюється на льоту.
 Як правило, усі оператори створюються незалежно від того, чи потрібні їм аргументи чи ні.
 
 ## Piping
 
 Pipable operators є функціями, тому їх можна використовувати як звичайні функції: `op()(obs)` — але на практиці, як правило,
-багато з них згортаються разом і швидко стають нечитабельними: `op4()(op3()(op2( )(op1()(obs))))`.
+багато з них згортаються разом і швидко стають нечитабельними: `op4()(op3()(op2( )(op1()(obs))))`.??
 З цієї причини у Об'єктів Спостереження є метод під назвою `.pipe()`, який виконує те саме, але його набагато легше читати:
 
 ```javascript
@@ -103,11 +324,11 @@ obs.pipe(op1(), op2(), op3(), op4());
 ![image](https://miro.medium.com/max/700/1*a6BMBG_UFmZ-9iTVJDdX8A.png)
 
 ```javascript
-import { interval, take } from "rxjs";
+import { interval, take } from 'rxjs';
 
 const numbers = interval(1000);
 
-numbers.subscribe((x) => console.log("Next: ", x));
+numbers.subscribe((x) => console.log('Next: ', x));
 
 // Logs:
 // Next: 0
@@ -160,11 +381,9 @@ outerObservable().pipe(mergeMapTo(innerObservable(), (x, y) => x + y));
 Прикладом оператора створення може бути інтервальна функція. Він приймає число (не Об'єкт Спостереження) як вхідний аргумент і створює Об'єкт Спостереження на виході:
 
 ```javascript
-import { interval } from "rxjs";
+import { interval } from 'rxjs';
 
-const observable = interval(1000 /* number of milliseconds */).subscribe(
-    console.log
-);
+const observable = interval(1000 /* number of milliseconds */).subscribe(console.log);
 
 setTimeout(() => observable.unsubscribe(), 5000);
 
@@ -181,20 +400,17 @@ setTimeout(() => observable.unsubscribe(), 5000);
 Наприклад, ось як працює оператор `interval()` всередині:
 
 ```javascript
-import { Observable } from "rxjs";
+import { Observable } from 'rxjs';
 
 function interval(intervalTime) {
-    let number = 0;
-    return new Observable((subscriber) => {
-        const intervalId = setInterval(
-            () => subscriber.next(number++),
-            intervalTime
-        );
+	let number = 0;
+	return new Observable((subscriber) => {
+		const intervalId = setInterval(() => subscriber.next(number++), intervalTime);
 
-        return () => {
-            clearInterval(intervalId);
-        };
-    });
+		return () => {
+			clearInterval(intervalId);
+		};
+	});
 }
 
 const observable = interval(1000).subscribe(console.log);
@@ -233,7 +449,7 @@ setTimeout(() => observable.unsubscribe(), 5000);
 `from` - створює Об'єкт Спостерження з масиву, Promise, iterable.
 
 ```javascript
-import { from } from "rxjs";
+import { from } from 'rxjs';
 
 const array = [10, 20, 30];
 const result = from(array);
@@ -251,12 +467,12 @@ result.subscribe((x) => console.log(x));
 `of` - створює Об'єкт Спостережння, який віддає через `next` передані дані по черзі, а потім завершається.
 
 ```javascript
-import { of } from "rxjs";
+import { of } from 'rxjs';
 
 of(10, 20, 30).subscribe({
-    next: (value) => console.log("next:", value),
-    error: (err) => console.log("error:", err),
-    complete: () => console.log("the end"),
+	next: (value) => console.log('next:', value),
+	error: (err) => console.log('error:', err),
+	complete: () => console.log('the end'),
 });
 
 // Outputs
@@ -269,9 +485,9 @@ of(10, 20, 30).subscribe({
 `fromEvent` - створює Об'єкт Спостереження з події(кліки/ввід даних, тощо).
 
 ```javascript
-import { fromEvent } from "rxjs";
+import { fromEvent } from 'rxjs';
 
-const clicks = fromEvent(document, "click");
+const clicks = fromEvent(document, 'click');
 clicks.subscribe((x) => console.log(x));
 
 // Results in:
@@ -294,52 +510,46 @@ clicks.subscribe((x) => console.log(x));
 Перш ніж почати, я пояснюю, що всі приклади використовують ці три Об'єкти Спостереження як вхідні дані.
 
 ```javascript
-import { from, Observable } from "rxjs";
+import { from, Observable } from 'rxjs';
 
 async function* hello() {
-    const wait = async (time: number) =>
-        new Promise((res) => setTimeout(res, time));
-    yield "Hello";
-    await wait(1000);
-    yield "from";
-    await wait(500);
-    yield "iterator";
+	const wait = async (time: number) => new Promise((res) => setTimeout(res, time));
+	yield 'Hello';
+	await wait(1000);
+	yield 'from';
+	await wait(500);
+	yield 'iterator';
 }
 
 export const iterator$ = from(hello());
-export const arrayFrom$ = from(["Hello", "from", "array"]);
+export const arrayFrom$ = from(['Hello', 'from', 'array']);
 export const arrayOfWithDelay$ =
-    new Observable() <
-    number >
-    ((subscriber) => {
-        let counter = 10;
-        const id = setInterval(() => {
-            if (counter > 0) {
-                subscriber.next(counter--);
-            } else {
-                clearInterval(id);
-                subscriber.complete();
-            }
-        }, 500);
-    });
+	new Observable() <
+	number >
+	((subscriber) => {
+		let counter = 10;
+		const id = setInterval(() => {
+			if (counter > 0) {
+				subscriber.next(counter--);
+			} else {
+				clearInterval(id);
+				subscriber.complete();
+			}
+		}, 500);
+	});
 ```
 
 `combineLatest` - Об’єднує кілька Об'єктів Спостереження для створення нового, значення якого обчислюються з останніх значень кожного з його вхідних Об'єктів Спостереження.
 
 ```javascript
-import { combineLatest } from "rxjs";
-import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+import { combineLatest } from 'rxjs';
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from '../sources';
 
 console.log(new Date().toLocaleTimeString(), `[combineLatest] start`);
 
 combineLatest([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
-    next: (res) =>
-        console.log(new Date().toLocaleTimeString(), `[combineLatest]`, res),
-    complete: () =>
-        console.log(
-            new Date().toLocaleTimeString(),
-            `[combineLatest] complete`
-        ),
+	next: (res) => console.log(new Date().toLocaleTimeString(), `[combineLatest]`, res),
+	complete: () => console.log(new Date().toLocaleTimeString(), `[combineLatest] complete`),
 });
 ```
 
@@ -369,16 +579,14 @@ combineLatest([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
 `forkJoin` - Приймає масив Об'єктів Спостереження і повертає новий, який видає або масив значень у тому самому порядку, що й переданий масив.
 
 ```javascript
-import { forkJoin } from "rxjs";
-import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+import { forkJoin } from 'rxjs';
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from '../sources';
 
 console.log(new Date().toLocaleTimeString(), `[forkJoin] start`);
 
 forkJoin([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
-    next: (res) =>
-        console.log(new Date().toLocaleTimeString(), `[forkJoin]`, res),
-    complete: () =>
-        console.log(new Date().toLocaleTimeString(), `[forkJoin] complete`),
+	next: (res) => console.log(new Date().toLocaleTimeString(), `[forkJoin]`, res),
+	complete: () => console.log(new Date().toLocaleTimeString(), `[forkJoin] complete`),
 });
 ```
 
@@ -395,16 +603,14 @@ forkJoin([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
 `concat` - Створює вихідний Об'єкт Спостереження, який послідовно видає всі значення з першого заданого Об'єкту Спостереження, а потім переходить до наступного.
 
 ```javascript
-import { concat } from "rxjs";
-import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+import { concat } from 'rxjs';
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from '../sources';
 
 console.log(new Date().toLocaleTimeString(), `[concat] start`);
 
 concat(iterator$, arrayFrom$, arrayOfWithDelay$).subscribe({
-    next: (res) =>
-        console.log(new Date().toLocaleTimeString(), `[concat]`, res),
-    complete: () =>
-        console.log(new Date().toLocaleTimeString(), `[concat] complete`),
+	next: (res) => console.log(new Date().toLocaleTimeString(), `[concat]`, res),
+	complete: () => console.log(new Date().toLocaleTimeString(), `[concat] complete`),
 });
 ```
 
@@ -437,15 +643,14 @@ concat(iterator$, arrayFrom$, arrayOfWithDelay$).subscribe({
 `merge` - Створює вихідний Об'єкт Спостереження, який одночасно видає всі значення з кожного даного вхідного Об'єкту Спостереження.
 
 ```javascript
-import { merge } from "rxjs";
-import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+import { merge } from 'rxjs';
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from '../sources';
 
 console.log(new Date().toLocaleTimeString(), `[merge] start`);
 
 merge(iterator$, arrayFrom$, arrayOfWithDelay$).subscribe({
-    next: (res) => console.log(new Date().toLocaleTimeString(), `[merge]`, res),
-    complete: () =>
-        console.log(new Date().toLocaleTimeString(), `[merge] complete`),
+	next: (res) => console.log(new Date().toLocaleTimeString(), `[merge]`, res),
+	complete: () => console.log(new Date().toLocaleTimeString(), `[merge] complete`),
 });
 ```
 
@@ -477,15 +682,14 @@ merge(iterator$, arrayFrom$, arrayOfWithDelay$).subscribe({
 `race` - Повертає перший Об'єкт Спостереження, який видасть елемент.
 
 ```javascript
-import { race } from "rxjs";
-import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+import { race } from 'rxjs';
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from '../sources';
 
 console.log(new Date().toLocaleTimeString(), `[race] start`);
 
 race([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
-    next: (res) => console.log(new Date().toLocaleTimeString(), `[race]`, res),
-    complete: () =>
-        console.log(new Date().toLocaleTimeString(), `[race] complete`),
+	next: (res) => console.log(new Date().toLocaleTimeString(), `[race]`, res),
+	complete: () => console.log(new Date().toLocaleTimeString(), `[race] complete`),
 });
 ```
 
@@ -504,15 +708,14 @@ race([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
 `zip` - Об’єднує кілька Об'єктів Спостереження для створення нового, значення якого обчислюються зі значень у порядку кожного вхідного Об'єкту Спостереження.
 
 ```javascript
-import { zip } from "rxjs";
-import { arrayFrom$, arrayOfWithDelay$, iterator$ } from "../sources";
+import { zip } from 'rxjs';
+import { arrayFrom$, arrayOfWithDelay$, iterator$ } from '../sources';
 
 console.log(new Date().toLocaleTimeString(), `[zip] start`);
 
 zip([iterator$, arrayFrom$, arrayOfWithDelay$]).subscribe({
-    next: (res) => console.log(new Date().toLocaleTimeString(), `[zip]`, res),
-    complete: () =>
-        console.log(new Date().toLocaleTimeString(), `[zip] complete`),
+	next: (res) => console.log(new Date().toLocaleTimeString(), `[zip]`, res),
+	complete: () => console.log(new Date().toLocaleTimeString(), `[zip] complete`),
 });
 ```
 
@@ -552,14 +755,14 @@ arrayOfWithDelay$: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
 Верхня стрілка представляє наш вхідний Об'єкт Спостереження і видає три значення. Це досить просто, якщо ви працювали з функцією `map` використовуючи масиви JavaScript. Все, що ви робите, це трансформуєте значення, що надходять із вхідного Об'єкта Спостереження, у 10 разів. Ось кулькова діаграма, відтворена в коді:
 
 ```javascript
-import { of } from "rxjs";
-import { map } from "rxjs/operators";
+import { of } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 const inputObservable = of(1, 2, 3);
 
 inputObservable()
-    .pipe(map((x) => 10 * x))
-    .subscribe((value) => console.log(value));
+	.pipe(map((x) => 10 * x))
+	.subscribe((value) => console.log(value));
 ```
 
 ![image](https://miro.medium.com/max/700/1*4Jg3vWN82T4R2N1QW4WJPg.gif)
@@ -575,8 +778,8 @@ inputObservable()
 Нижче наведено код і візуалізацію:
 
 ```javascript
-import { interval } from "rxjs";
-import { map, take } from "rxjs/operators";
+import { interval } from 'rxjs';
+import { map, take } from 'rxjs/operators';
 
 const inputObservable = interval(1000);
 
@@ -603,9 +806,9 @@ interval(1000).pipe(
 
 ```ts
 class Observable {
-    pipe(...operators): Observable<any> {
-        return operators.reduce((source, next) => next(source), this);
-    }
+	pipe(...operators): Observable<any> {
+		return operators.reduce((source, next) => next(source), this);
+	}
 }
 ```
 
@@ -619,7 +822,7 @@ map(interval): Observable
 
 ```ts
 function myOperator<T>(source: Observable<T>) {
-    return source;
+	return source;
 }
 ```
 
@@ -627,8 +830,8 @@ function myOperator<T>(source: Observable<T>) {
 
 ```ts
 interval(1000)
-    .pipe(myOperator)
-    .subscribe((value) => console.log(value));
+	.pipe(myOperator)
+	.subscribe((value) => console.log(value));
 ```
 
 А тепер давайте зупинимося на секунду та поговоримо про поширену помилку щодо цієї теми. Дивлячись на наш приклад, ви можете почути, як люди описують його як «підписка на Об'єкт Спостереження `interval`». Це помилковий опис, ви _завжди підписані на останнього оператора в ланцюжку_ (тобто останнього в списку операторів).
@@ -637,10 +840,10 @@ interval(1000)
 
 ```ts
 function myOperator<T>(source: Observable<T>) {
-    return new Observable((subscriber) => {
-        subscriber.next(`🦄`);
-        subscriber.complete();
-    });
+	return new Observable((subscriber) => {
+		subscriber.next(`🦄`);
+		subscriber.complete();
+	});
 }
 ```
 
@@ -675,23 +878,23 @@ interval(1000).pipe(
 
 ```ts
 function filterNil() {
-    return function <T>(source: Observable<T>): Observable<T> {
-        return new Observable((subscriber) => {
-            source.subscribe({
-                next(value) {
-                    if (value !== undefined && value !== null) {
-                        subscriber.next(value);
-                    }
-                },
-                error(error) {
-                    subscriber.error(error);
-                },
-                complete() {
-                    subscriber.complete();
-                },
-            });
-        });
-    };
+	return function <T>(source: Observable<T>): Observable<T> {
+		return new Observable((subscriber) => {
+			source.subscribe({
+				next(value) {
+					if (value !== undefined && value !== null) {
+						subscriber.next(value);
+					}
+				},
+				error(error) {
+					subscriber.error(error);
+				},
+				complete() {
+					subscriber.complete();
+				},
+			});
+		});
+	};
 }
 ```
 
@@ -703,11 +906,11 @@ function filterNil() {
 
 ```ts
 interval(1000)
-    .pipe(
-        map((value) => (value === 0 ? undefined : value)),
-        filterNil()
-    )
-    .subscribe((value) => console.log(value));
+	.pipe(
+		map((value) => (value === 0 ? undefined : value)),
+		filterNil()
+	)
+	.subscribe((value) => console.log(value));
 ```
 
 Ви могли помітити важливу проблему — ми створили витік пам’яті. Пам’ятайте, що кожен спостережуваний повертає функцію скасування підписки, яка відповідає за виконання будь-якого необхідного очищення. Ця функція викликається кожного разу, коли хтось викликає `unsubscribe()`. У нашому прикладі ми підписалися на джерело, але ніде не скасовували підписку на нього.
@@ -718,25 +921,25 @@ interval(1000)
 
 ```ts
 function filterNil() {
-    return function <T>(source: Observable<T>): Observable<T> {
-        return new Observable((subscriber) => {
-            const subscription = source.subscribe({
-                next(value) {
-                    if (value !== undefined && value !== null) {
-                        subscriber.next(value);
-                    }
-                },
-                error(error) {
-                    subscriber.error(error);
-                },
-                complete() {
-                    subscriber.complete();
-                },
-            });
+	return function <T>(source: Observable<T>): Observable<T> {
+		return new Observable((subscriber) => {
+			const subscription = source.subscribe({
+				next(value) {
+					if (value !== undefined && value !== null) {
+						subscriber.next(value);
+					}
+				},
+				error(error) {
+					subscriber.error(error);
+				},
+				complete() {
+					subscriber.complete();
+				},
+			});
 
-            return () => subscription.unsubscribe(); // <-- here
-        });
-    };
+			return () => subscription.unsubscribe(); // <-- here
+		});
+	};
 }
 ```
 
@@ -769,11 +972,9 @@ function filterNil() {
 
 ```ts
 function filterNil() {
-    return function <T>(source: Observable<T>) {
-        return source.pipe(
-            filter((value) => value !== undefined && value !== null)
-        );
-    };
+	return function <T>(source: Observable<T>) {
+		return source.pipe(filter((value) => value !== undefined && value !== null));
+	};
 }
 ```
 
@@ -781,7 +982,7 @@ function filterNil() {
 
 ```ts
 function filterNil() {
-    return filter((value) => value !== undefined && value !== null);
+	return filter((value) => value !== undefined && value !== null);
 }
 ```
 
@@ -789,38 +990,38 @@ function filterNil() {
 
 ```javascript
 const gameData = [
-    {
-        title: "Mega Man 2",
-        bosses: [
-            {
-                name: "Bubble Man",
-                weapon: "Bubble Beam",
-            },
-            {
-                name: "Metal Man",
-                weapon: "Metal Blade",
-            },
-        ],
-    },
-    {
-        title: "Mega Man 3",
-        bosses: [
-            {
-                name: "Gemini Man",
-                weapon: "Gemini Laser",
-            },
-            {
-                name: "Top Man",
-                weapon: "Top Spin",
-            },
-        ],
-    },
+	{
+		title: 'Mega Man 2',
+		bosses: [
+			{
+				name: 'Bubble Man',
+				weapon: 'Bubble Beam',
+			},
+			{
+				name: 'Metal Man',
+				weapon: 'Metal Blade',
+			},
+		],
+	},
+	{
+		title: 'Mega Man 3',
+		bosses: [
+			{
+				name: 'Gemini Man',
+				weapon: 'Gemini Laser',
+			},
+			{
+				name: 'Top Man',
+				weapon: 'Top Spin',
+			},
+		],
+	},
 ];
 
 // return an array of all bosses
 
 const bossesArray = gameData.map((game) => {
-    return game.bosses;
+	return game.bosses;
 });
 
 // uh oh, those are nested arrays!
@@ -836,13 +1037,13 @@ const bossesArray = gameData.map((game) => {
 
 ```javascript
 Array.prototype.flatten = function () {
-    let retVal = [];
+	let retVal = [];
 
-    this.forEach((a) => {
-        retVal = retVal.concat(a);
-    });
+	this.forEach((a) => {
+		retVal = retVal.concat(a);
+	});
 
-    return retVal;
+	return retVal;
 };
 
 let arr = [[1, 2], [3], 4, [5, 6], [[7], 8]];
@@ -854,10 +1055,10 @@ console.log(arr.flatten()); // [1, 2, 3, 4, 5, 6, [7], 8]
 
 ```javascript
 const bossesArray = gameData
-    .map((game) => {
-        return game.bosses;
-    })
-    .flatten();
+	.map((game) => {
+		return game.bosses;
+	})
+	.flatten();
 
 // returns a flattened array of boss objects [{}, {}, {}, {}]
 ```
@@ -866,12 +1067,12 @@ const bossesArray = gameData
 
 ```javascript
 Array.prototype.flatMap = function (fn) {
-    return this.map(fn).flatten();
+	return this.map(fn).flatten();
 };
 
 // usage
 const bossesArray = gameData.flatMap((game) => {
-    return game.bosses;
+	return game.bosses;
 }); // [{}, {}, {}, {}]
 ```
 
@@ -882,18 +1083,16 @@ const bossesArray = gameData.flatMap((game) => {
 Спочатку ми подивимося на інтуітивний, але **неправильний** спосіб це зробити.
 
 ```javascript
-import { of } from "rxjs";
-import { ajax } from "rxjs/ajax";
+import { of } from 'rxjs';
+import { ajax } from 'rxjs/ajax';
 
 // Для простоти ми не будемо створювати поле вводу і слухати його, а замінимо просто 3 умовними значеннями пошуку
-const userInputs$ = of("users", "addresses");
+const userInputs$ = of('users', 'addresses');
 
 userInputs$.subscribe((searchText) => {
-    ajax(`https://random-data-api.com/api/v2${searchText}`).subscribe(
-        (result) => {
-            console.log(result);
-        }
-    );
+	ajax(`https://random-data-api.com/api/v2${searchText}`).subscribe((result) => {
+		console.log(result);
+	});
 });
 ```
 
@@ -908,21 +1107,15 @@ userInputs$.subscribe((searchText) => {
 Що ж, давайте спробуємо використовувати оператори:
 
 ```javascript
-import { of } from "rxjs";
-import { ajax } from "rxjs/ajax";
-import { map } from "rxjs/operators";
+import { of } from 'rxjs';
+import { ajax } from 'rxjs/ajax';
+import { map } from 'rxjs/operators';
 
-const userInputs$ = of("users", "addresses");
+const userInputs$ = of('users', 'addresses');
 
-userInputs$
-    .pipe(
-        map((searchText) =>
-            ajax(`https://random-data-api.com/api/v2/${searchText}`)
-        )
-    )
-    .subscribe((result) => {
-        console.log(result);
-    });
+userInputs$.pipe(map((searchText) => ajax(`https://random-data-api.com/api/v2/${searchText}`))).subscribe((result) => {
+	console.log(result);
+});
 // We will get:
 // Observable {...}
 // Observable {...}
@@ -934,28 +1127,26 @@ userInputs$
 Підписуватися на нього самостійно всередині `pipe()` ідея не краща, виглядатиме це ще складніше.
 
 ```javascript
-import { mergeAll, Observable, of } from "rxjs";
-import { ajax } from "rxjs/ajax";
-import { map } from "rxjs/operators";
+import { mergeAll, Observable, of } from 'rxjs';
+import { ajax } from 'rxjs/ajax';
+import { map } from 'rxjs/operators';
 
-const userInputs$ = of("users", "addresses");
+const userInputs$ = of('users', 'addresses');
 
 userInputs$
-    .pipe(
-        map((searchText) => {
-            return new Observable((subscriber) => {
-                ajax(
-                    `https://random-data-api.com/api/v2/${searchText}`
-                ).subscribe({
-                    next: (result) => subscriber.next(result),
-                });
-            });
-        }),
-        mergeAll()
-    )
-    .subscribe((result) => {
-        console.log(result);
-    });
+	.pipe(
+		map((searchText) => {
+			return new Observable((subscriber) => {
+				ajax(`https://random-data-api.com/api/v2/${searchText}`).subscribe({
+					next: (result) => subscriber.next(result),
+				});
+			});
+		}),
+		mergeAll()
+	)
+	.subscribe((result) => {
+		console.log(result);
+	});
 ```
 
 В даному випадку ми не можемо просто підписатися вдруге на `ajax()`, як ми це зробили в першому неправильному прикладі. Все тому, що нам потрібно повернути значення, яке віддасть сервер далі до `subscribe`. Це можна зробити створивши новий Об'єкт Спостереження, який просто віддасть через `subscriber.next(result)` отримане значення, коли воно з'явиться. І це ще не все. Так як ми знову повертаємо Об'єкт Спостереження, а не сам результат, нам потрібно використати один з `flattening` операторів, для того, щоб отримати саме значення. І ще ніхто не відміняв відписування від підписок всередині `pipe()`.
@@ -984,8 +1175,8 @@ const fileObservable = urlObservable.pipe(map((url) => http.get(url)));
 
 ```javascript
 const fileObservable = urlObservable.pipe(
-    map((url) => http.get(url)),
-    concatAll()
+	map((url) => http.get(url)),
+	concatAll()
 );
 ```
 
@@ -997,4 +1188,4 @@ const fileObservable = urlObservable.pipe(
 -   `switchAll()` — підписується на перший внутрішній Об'єкт Спостереження, коли він надходить, і видає кожне значення, коли воно надходить, але коли наступний внутрішній Об'єкт Спостереження надходить, скасовує підписку на попередній і підписується на новий.
 -   `exhaustAll()` — підписується на перший внутрішній Об'єкт Спостереження, коли він надходить, і видає кожне значення, коли воно надходить, відкидаючи всі нові внутрішні Об'єкти Спостереження, доки перший не завершиться, а потім чекає на наступний внутрішній Об'єкт Спостереження.
 
-Подібно до того, як багато бібліотек поєднують `map()` і `flat()` (або `flatten()`) в один `flatMap()`, існують еквіваленти відображення всіх операторів розрівнювання RxJS `concatMap()`, `mergeMap()`, `switchMap()` і `exhaustMap()`.
+Подібно до того, як багато бібліотек поєднують `map()` і `flat()` (або `flatten()`) в один `flatMap()`, існують еквіваленти відображення всіх операторів розрівнювання RxJS `concatMap()`, `mergeMap()`, `switchMap()` і `exhaustMap()`. -->
